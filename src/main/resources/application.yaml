@@ -1,0 +1,11 @@
+application:
+  authentication:
+    user: uptempo-shutterstock-import
+    password: dsfoOd/d&ew(freui9tjdUfw=(r4giedefr
+
+  server:
+    url: https://mediaservices-test.zf.com/
+    soap-url: https://mediaservices-test.zf.com/webservices/MediaPool/
+    request_timeout: 60
+    max-in-memory-size: 1000000000
+    port: 18080
