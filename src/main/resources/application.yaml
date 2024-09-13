@@ -8,4 +8,4 @@ application:
     soap-url: https://mediaservices-test.zf.com/webservices/MediaPool/
     request_timeout: 60
     max-in-memory-size: 1000000000
-    port: 18080
+    port: 8080
