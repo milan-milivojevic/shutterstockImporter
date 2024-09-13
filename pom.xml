@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.brandmaker.cs.skyhigh.mpshutterstockckconnector</groupId>
-    <artifactId>mp-shutterstock-connector</artifactId>
+    <artifactId>zf-mp-shutterstock-connector</artifactId>
     <version>0.0.1</version>
     <name>mp-shutterstock-connector</name>
     <description>mp-shutterstock-connector</description>
