@@ -225,8 +225,8 @@ public class AssetUtils {
             multilangOperation.put(PROPERTY_NAME_FIELD, "customAttribute_426");
 
             final ObjectNode valueObject = mapper.createObjectNode();
-            valueObject.put("DE", "47296555");
-            valueObject.put("EN", "47296555");
+            valueObject.put("DE", image.getImage().getId());
+            valueObject.put("EN", image.getImage().getId());
 
             multilangOperation.set(VALUE_FIELD, valueObject);
 
@@ -422,12 +422,37 @@ public class AssetUtils {
             multilangOperation.put(PROPERTY_NAME_FIELD, "customAttribute_426");
 
             final ObjectNode valueObject = mapper.createObjectNode();
-            valueObject.put("DE", "47296555");
-            valueObject.put("EN", "47296555");
+            valueObject.put("DE", video.getVideo().getId());
+            valueObject.put("EN", video.getVideo().getId());
 
             multilangOperation.set(VALUE_FIELD, valueObject);
 
             updateOperations.add(multilangOperation);
+
+            // Custom attribute operation
+            final ObjectNode customAttributeOperation = mapper.createObjectNode();
+            customAttributeOperation.put(TYPE_FIELD, "replace_multilang");
+            customAttributeOperation.put(PROPERTY_NAME_FIELD, "customAttribute_479");
+
+            final ObjectNode customAttributeValue = mapper.createObjectNode();
+
+            String enCustomAttribute = "<p>For further queries</p>\n\n" +
+                    "<p>Do you need the high-resolution file of this video? Please contact the ZF colleague who is responsible for Shutterstock " +
+                    "or our hotline at <a aria-label=\"Link help@lsd.de\" href=\"mailto:help@lsd.de\" id=\"menur23e\" " +
+                    "rel=\"noreferrer noopener\" target=\"_blank\" title=\"mailto:help@lsd.de\">help@lsd.de</a>. " +
+                    "Please be sure to include the media ID.</p>\n";
+
+            String deCustomAttribute = "<p>Bei Rückfragen</p>\n\n" +
+                    "<p>Sie benötigen von diesem Video die hochauflösende Datei? Bitte kontaktieren Sie den für Shutterstock " +
+                    "zuständigen ZF-Kollegen oder unsere Hotline unter <a aria-label=\"Link help@lsd.de\" href=\"mailto:help@lsd.de\" " +
+                    "id=\"menur23g\" rel=\"noreferrer noopener\" target=\"_blank\" title=\"mailto:help@lsd.de\">help@lsd.de</a>. " +
+                    "Geben Sie bitte unbedingt die Medien-ID an.</p>\n";
+
+            customAttributeValue.put("EN", enCustomAttribute);
+            customAttributeValue.put("DE", deCustomAttribute);
+
+            customAttributeOperation.set(VALUE_FIELD, customAttributeValue);
+            updateOperations.add(customAttributeOperation);
 
 
 
@@ -618,8 +643,8 @@ public class AssetUtils {
             multilangOperation.put(PROPERTY_NAME_FIELD, "customAttribute_426");
 
             final ObjectNode valueObject = mapper.createObjectNode();
-            valueObject.put("DE", "47296555");
-            valueObject.put("EN", "47296555");
+            valueObject.put("DE", audio.getAudio().getId());
+            valueObject.put("EN", audio.getAudio().getId());
 
             multilangOperation.set(VALUE_FIELD, valueObject);
 
