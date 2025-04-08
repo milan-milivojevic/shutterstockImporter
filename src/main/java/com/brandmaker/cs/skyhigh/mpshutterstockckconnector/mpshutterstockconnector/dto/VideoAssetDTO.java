@@ -6,21 +6,30 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.codehaus.jackson.annotate.JsonIgnoreProperties;
 
+import java.util.Map;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class VideoAssetDTO {
-    private int height;
-    private int width;
-    private int fps;
-    private String format;
-    @JsonProperty("file_size")
-    private long fileSize;
-    private String name;
-    @JsonProperty("display_name")
-    private String displayName;
-    @JsonProperty("is_licensable")
-    private boolean isLicensable;
-    private String url;
+    @JsonProperty("thumb_webm")
+    private VideoUrlDTO thumbWebm;
+    @JsonProperty("thumb_mp4")
+    private VideoUrlDTO thumbMp4;
+    @JsonProperty("preview_webm")
+    private VideoUrlDTO previewWebm;
+    @JsonProperty("preview_mp4")
+    private VideoUrlDTO previewMp4;
+    @JsonProperty("thumb_jpg")
+    private VideoUrlDTO thumbJpg;
+    @JsonProperty("preview_jpg")
+    private VideoUrlDTO previewJpg;
+    @JsonProperty("thumb_jpgs")
+    private VideoUrlsDTO thumbJpgs;
+    private VideoWebFormatDTO web;
+    private VideoSdFormatDTO sd;
+    private VideoHdFormatDTO hd;
+    @JsonProperty("4k")
+    private Video4kFormatDTO fourK;
 }

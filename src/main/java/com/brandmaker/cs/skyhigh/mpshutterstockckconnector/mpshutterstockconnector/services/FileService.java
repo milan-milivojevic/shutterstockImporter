@@ -92,7 +92,7 @@ public class FileService {
                 this.assetService.updateAssetMetadata(assetMetadataTO);
 
             } else if (response.getError().contains("The media already exists!")) {
-                log.info("response: {}", response);
+                log.info("response: {}", response.getError());
                 final Matcher matcher = MEDIA_POOL_HASH_PATTERN.matcher(response.getError());
 
                 if (matcher.find()) {
@@ -135,4 +135,3 @@ public class FileService {
 
     }
 }
-

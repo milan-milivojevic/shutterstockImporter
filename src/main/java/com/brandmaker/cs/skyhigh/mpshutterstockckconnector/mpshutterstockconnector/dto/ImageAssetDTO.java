@@ -11,15 +11,24 @@ import org.codehaus.jackson.annotate.JsonIgnoreProperties;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ImageAssetDTO {
-    @JsonProperty("display_name")
-    private String displayName;
-    private int dpi;
-    @JsonProperty("file_size")
-    private long fileSize;
-    private String format;
-    private int height;
-    @JsonProperty("is_licensable")
-    private boolean isLicensable;
-    private int width;
-    private String url;
+    @JsonProperty("vector_eps")
+    private ImageVectorEpsDTO vectorEps;
+    @JsonProperty("medium_jpg")
+    private ImageJpgDTO mediumJpg;
+    @JsonProperty("small_jpg")
+    private ImageJpgDTO smallJpg;
+    @JsonProperty("huge_jpg")
+    private ImageJpgDTO hugeJpg;
+    private ImagePreviewDTO preview;
+    @JsonProperty("small_thumb")
+    private ImagePreviewDTO smallThumb;
+    @JsonProperty("large_thumb")
+    private ImagePreviewDTO largeThumb;
+    @JsonProperty("huge_thumb")
+    private ImagePreviewDTO hugeThumb;
+    private ImagePreviewDTO mosaic;
+    @JsonProperty("preview_1000")
+    private ImagePreviewDTO preview1000;
+    @JsonProperty("preview_1500")
+    private ImagePreviewDTO preview1500;
 }

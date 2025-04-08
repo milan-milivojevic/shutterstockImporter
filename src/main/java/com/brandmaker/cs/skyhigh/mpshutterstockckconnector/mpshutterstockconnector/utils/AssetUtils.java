@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -93,21 +95,62 @@ public class AssetUtils {
             titleOperation.put(PROPERTY_NAME_FIELD, "assetTitle");
 
             final ObjectNode titleValue = mapper.createObjectNode();
-            String enTitle = "Asset name missing";
-            String deTitle = "Asset-Name fehlt";
+            String enTitle = "Asset name  missing";
+            String deTitle = "Asset-Name  fehlt";
 
             if (!imageMetadataEn.getData().isEmpty()) {
-                String originalFilenameEn = imageMetadataEn.getData().get(0).getOriginalFilename();
-                String originalFilenameDe = imageMetadataDe.getData().get(0).getOriginalFilename();
 
-                if (!originalFilenameEn.isEmpty()) {
-                    enTitle = originalFilenameEn.replace("_", " ");
-                    enTitle = "STOCK " + enTitle;
+                String shutterstockId = image.getImage().getId();
+
+                String descriptionEn = imageMetadataEn.getData().get(0).getDescription();
+
+                if (!descriptionEn.isEmpty()) {
+                    int commaIndex = descriptionEn.indexOf(",");
+                    int periodIndex = descriptionEn.indexOf(".");
+                    int cutoffIndex;
+                    if (commaIndex == -1 && periodIndex == -1) {
+                        cutoffIndex = descriptionEn.length();  // No comma or period, use entire description
+                    } else if (commaIndex == -1) {
+                        cutoffIndex = periodIndex;  // Only period exists
+                    } else if (periodIndex == -1) {
+                        cutoffIndex = commaIndex;  // Only comma exists
+                    } else {
+                        cutoffIndex = Math.min(commaIndex, periodIndex);  // Both exist, take the first
+                    }
+                    descriptionEn = descriptionEn.substring(0, cutoffIndex);
+                } else {
+                    descriptionEn = "Description missing";
                 }
-                if (!originalFilenameDe.isEmpty()) {
-                    deTitle = originalFilenameDe.replace("_", " ");
-                    deTitle = "STOCK " + deTitle;
+
+                String descriptionDe = imageMetadataDe.getData().get(0).getDescription();
+
+                if (!descriptionDe.isEmpty()) {
+                    int commaIndex = descriptionDe.indexOf(",");
+                    int periodIndex = descriptionDe.indexOf(".");
+                    int cutoffIndex;
+                    if (commaIndex == -1 && periodIndex == -1) {
+                        cutoffIndex = descriptionDe.length();
+                    } else if (commaIndex == -1) {
+                        cutoffIndex = periodIndex;
+                    } else if (periodIndex == -1) {
+                        cutoffIndex = commaIndex;
+                    } else {
+                        cutoffIndex = Math.min(commaIndex, periodIndex);
+                    }
+                    descriptionDe = descriptionDe.substring(0, cutoffIndex);
+                } else {
+                    descriptionDe = "Beschreibung fehlt";
                 }
+
+                int width = imageMetadataEn.getData().get(0).getAssets().getHugeJpg().getWidth();
+                int height = imageMetadataEn.getData().get(0).getAssets().getHugeJpg().getHeight();
+
+                String format = width + " x " + height + " px";
+
+                String currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
+
+                enTitle = String.format("STOCK Image %s %s %s %s", shutterstockId, descriptionEn, format, currentDate);
+                deTitle = String.format("STOCK Bild %s %s %s %s", shutterstockId, descriptionDe, format, currentDate);
             }
 
             titleValue.put("EN", enTitle);
@@ -118,19 +161,56 @@ public class AssetUtils {
             log.info("titleOperation: {}", titleOperation);
             updateOperations.add(titleOperation);
 
-            //file name operation
+            // file name operation
             final ObjectNode fileNameOperation = mapper.createObjectNode();
             fileNameOperation.put(TYPE_FIELD, "replace_string");
             fileNameOperation.put(PROPERTY_NAME_FIELD, "fileName");
-            if (!imageMetadataEn.getData().isEmpty() && !imageMetadataEn.getData().get(0).getOriginalFilename().isEmpty()) {
-                fileNameOperation.put(VALUE_FIELD, "STOCK" + imageMetadataEn.getData().get(0).getOriginalFilename());
-            } else {
-                fileNameOperation.put(VALUE_FIELD, "File name missing");
+
+            String shutterstockId = image.getImage().getId();
+
+            String description = "Description missing";
+            if (!imageMetadataEn.getData().isEmpty()) {
+                String descriptionEn = imageMetadataEn.getData().get(0).getDescription();
+                if (!descriptionEn.isEmpty()) {
+                    // Find the indices of the first comma and period
+                    int commaIndex = descriptionEn.indexOf(",");
+                    int periodIndex = descriptionEn.indexOf(".");
+
+                    // Determine the cutoff index based on which comes first and exists
+                    int cutoffIndex;
+                    if (commaIndex == -1 && periodIndex == -1) {
+                        cutoffIndex = descriptionEn.length(); // No comma or period, use entire description
+                    } else if (commaIndex == -1) {
+                        cutoffIndex = periodIndex; // Only period exists
+                    } else if (periodIndex == -1) {
+                        cutoffIndex = commaIndex; // Only comma exists
+                    } else {
+                        cutoffIndex = Math.min(commaIndex, periodIndex); // Both exist, take the first
+                    }
+
+                    // Set the description up to the cutoff index, replacing spaces with underscores
+                    description = descriptionEn.substring(0, cutoffIndex).replace(" ", "_");
+                }
             }
 
-            updateOperations.add(titleOperation);
-            log.info("titleOperation: {}", titleOperation);
+            int width = imageMetadataEn.getData().get(0).getAssets().getHugeJpg().getWidth();
+            int height = imageMetadataEn.getData().get(0).getAssets().getHugeJpg().getHeight();
 
+            String format = width + "_x_" + height + "_px";
+
+            String currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
+
+            String finalFileName = String.format(
+              "STOCK_IMG_%s_%s_%s_%s",
+              shutterstockId,
+              description,
+              format,
+              currentDate
+            );
+
+            log.info("finalFileName: {}", finalFileName);
+            fileNameOperation.put(VALUE_FIELD, finalFileName);
+            log.info("fileNameOperation: {}", fileNameOperation);
             updateOperations.add(fileNameOperation);
 
             //structured keywords operation
@@ -161,7 +241,7 @@ public class AssetUtils {
 
             if (!imageMetadataDe.getData().isEmpty() && !imageMetadataDe.getData().get(0).getKeywords().isEmpty()) {
                 List<String> keywords = imageMetadataDe.getData().get(0).getKeywords();
-                enKeywords = String.join(",\n", keywords);
+                deKeywords = String.join(",\n", keywords);
             }
 
             anyKeywordsValue.put("EN", enKeywords);
@@ -222,7 +302,7 @@ public class AssetUtils {
             // stock ID operation
             final ObjectNode multilangOperation = mapper.createObjectNode();
             multilangOperation.put(TYPE_FIELD, "replace_multilang");
-            multilangOperation.put(PROPERTY_NAME_FIELD, "customAttribute_426");
+            multilangOperation.put(PROPERTY_NAME_FIELD, "customAttribute_276");
 
             final ObjectNode valueObject = mapper.createObjectNode();
             valueObject.put("DE", image.getImage().getId());
@@ -284,27 +364,68 @@ public class AssetUtils {
 
             updateOperations.add(categoryOperation);
 
+
             // Asset title operation
             final ObjectNode titleOperation = mapper.createObjectNode();
             titleOperation.put(TYPE_FIELD, "replace_multilang");
             titleOperation.put(PROPERTY_NAME_FIELD, "assetTitle");
 
             final ObjectNode titleValue = mapper.createObjectNode();
-            String enTitle = "Asset name missing";
-            String deTitle = "Asset-Name fehlt";
+            String enTitle = "Asset name  missing";
+            String deTitle = "Asset-Name  fehlt";
 
             if (!videoMetadataEn.getData().isEmpty()) {
-                String originalFilenameEn = videoMetadataEn.getData().get(0).getOriginalFilename();
-                String originalFilenameDe = videoMetadataDe.getData().get(0).getOriginalFilename();
 
-                if (!originalFilenameEn.isEmpty()) {
-                    enTitle = originalFilenameEn.replace("_", " ");
-                    enTitle = "STOCK " + enTitle;
+                String shutterstockId = video.getVideo().getId();
+
+                String descriptionEn = videoMetadataEn.getData().get(0).getDescription();
+
+                if (!descriptionEn.isEmpty()) {
+                    int commaIndex = descriptionEn.indexOf(",");
+                    int periodIndex = descriptionEn.indexOf(".");
+                    int cutoffIndex;
+                    if (commaIndex == -1 && periodIndex == -1) {
+                        cutoffIndex = descriptionEn.length();  // No comma or period, use entire description
+                    } else if (commaIndex == -1) {
+                        cutoffIndex = periodIndex;  // Only period exists
+                    } else if (periodIndex == -1) {
+                        cutoffIndex = commaIndex;  // Only comma exists
+                    } else {
+                        cutoffIndex = Math.min(commaIndex, periodIndex);  // Both exist, take the first
+                    }
+                    descriptionEn = descriptionEn.substring(0, cutoffIndex);
+                } else {
+                    descriptionEn = "Description missing";
                 }
-                if (!originalFilenameDe.isEmpty()) {
-                    deTitle = originalFilenameDe.replace("_", " ");
-                    deTitle = "STOCK " + deTitle;
+
+                String descriptionDe = videoMetadataDe.getData().get(0).getDescription();
+
+                if (!descriptionDe.isEmpty()) {
+                    int commaIndex = descriptionDe.indexOf(",");
+                    int periodIndex = descriptionDe.indexOf(".");
+                    int cutoffIndex;
+                    if (commaIndex == -1 && periodIndex == -1) {
+                        cutoffIndex = descriptionDe.length();
+                    } else if (commaIndex == -1) {
+                        cutoffIndex = periodIndex;
+                    } else if (periodIndex == -1) {
+                        cutoffIndex = commaIndex;
+                    } else {
+                        cutoffIndex = Math.min(commaIndex, periodIndex);
+                    }
+                    descriptionDe = descriptionDe.substring(0, cutoffIndex);
+                } else {
+                    descriptionDe = "Beschreibung fehlt";
                 }
+
+                int fps = videoMetadataEn.getData().get(0).getAssets().getWeb().getFps();
+
+                String format = videoMetadataEn.getData().get(0).getAspectRatio();
+
+                String currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
+
+                enTitle = String.format("STOCK Video %s %s %sfps %s %s", shutterstockId, descriptionEn, fps, format, currentDate);
+                deTitle = String.format("STOCK Video %s %s %sfps %s %s", shutterstockId, descriptionDe, fps, format, currentDate);
             }
 
             titleValue.put("EN", enTitle);
@@ -315,69 +436,57 @@ public class AssetUtils {
             log.info("titleOperation: {}", titleOperation);
             updateOperations.add(titleOperation);
 
-            //file name operation
+            // file name operation
             final ObjectNode fileNameOperation = mapper.createObjectNode();
             fileNameOperation.put(TYPE_FIELD, "replace_string");
             fileNameOperation.put(PROPERTY_NAME_FIELD, "fileName");
-            if (!videoMetadataEn.getData().isEmpty() && !videoMetadataEn.getData().get(0).getOriginalFilename().isEmpty()) {
-                fileNameOperation.put(VALUE_FIELD, "STOCK" + videoMetadataEn.getData().get(0).getOriginalFilename());
-            } else {
-                fileNameOperation.put(VALUE_FIELD, "File name missing");
+
+            String shutterstockId = video.getVideo().getId();
+
+            String description = "Description missing";
+            if (!videoMetadataEn.getData().isEmpty()) {
+                String descriptionEn = videoMetadataEn.getData().get(0).getDescription();
+                if (!descriptionEn.isEmpty()) {
+                    // Find the indices of the first comma and period
+                    int commaIndex = descriptionEn.indexOf(",");
+                    int periodIndex = descriptionEn.indexOf(".");
+
+                    // Determine the cutoff index based on which comes first and exists
+                    int cutoffIndex;
+                    if (commaIndex == -1 && periodIndex == -1) {
+                        cutoffIndex = descriptionEn.length(); // No comma or period, use entire description
+                    } else if (commaIndex == -1) {
+                        cutoffIndex = periodIndex; // Only period exists
+                    } else if (periodIndex == -1) {
+                        cutoffIndex = commaIndex; // Only comma exists
+                    } else {
+                        cutoffIndex = Math.min(commaIndex, periodIndex); // Both exist, take the first
+                    }
+
+                    // Set the description up to the cutoff index, replacing spaces with underscores
+                    description = descriptionEn.substring(0, cutoffIndex).replace(" ", "_");
+                }
             }
 
-            updateOperations.add(titleOperation);
-            log.info("titleOperation: {}", titleOperation);
+            int fps = videoMetadataEn.getData().get(0).getAssets().getWeb().getFps();
 
+            String format = videoMetadataEn.getData().get(0).getAspectRatio().replace(":", "-");
+
+            String currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
+
+            String finalFileName = String.format(
+              "STOCK_VID_%s_%s_%sfps_%s_%s",
+              shutterstockId,
+              description,
+              fps,
+              format,
+              currentDate
+            );
+
+            log.info("finalFileName: {}", finalFileName);
+            fileNameOperation.put(VALUE_FIELD, finalFileName);
+            log.info("fileNameOperation: {}", fileNameOperation);
             updateOperations.add(fileNameOperation);
-
-            //structured keywords operation
-            final ObjectNode keywordsOperation = mapper.createObjectNode();
-            keywordsOperation.put(TYPE_FIELD, "add_int");
-            keywordsOperation.put(PROPERTY_NAME_FIELD, "keywords");
-
-            final ArrayNode keywordsValues = mapper.createArrayNode();
-            keywordsValues.add("10188");
-            keywordsOperation.set(VALUES_FIELD, keywordsValues);
-            updateOperations.add(keywordsOperation);
-
-            // any keywords operation
-            final ObjectNode anyKeywordsOperation = mapper.createObjectNode();
-            anyKeywordsOperation.put(TYPE_FIELD, "replace_free_fields");
-            anyKeywordsOperation.put(PROPERTY_NAME_FIELD, "freeFields");
-
-            final ObjectNode anyKeywordsValueWrapper = mapper.createObjectNode();
-            final ObjectNode anyKeywordsValue = mapper.createObjectNode();
-
-            String enKeywords = "Keywords missing";
-            String deKeywords = "Schlüsselwörter fehlen";
-
-            if (!videoMetadataEn.getData().isEmpty() && !videoMetadataEn.getData().get(0).getKeywords().isEmpty()) {
-                List<String> keywords = videoMetadataEn.getData().get(0).getKeywords();
-                enKeywords = String.join(",\n", keywords);
-            }
-
-            if (!videoMetadataDe.getData().isEmpty() && !videoMetadataDe.getData().get(0).getKeywords().isEmpty()) {
-                List<String> keywords = videoMetadataDe.getData().get(0).getKeywords();
-                enKeywords = String.join(",\n", keywords);
-            }
-
-            anyKeywordsValue.put("EN", enKeywords);
-            anyKeywordsValue.put("DE", deKeywords);
-
-
-            anyKeywordsValueWrapper.put("@type", "text");
-            anyKeywordsValueWrapper.put("id", "10");
-            anyKeywordsValueWrapper.set("value", anyKeywordsValue);
-
-            ArrayNode valuesArray = mapper.createArrayNode();
-            valuesArray.add(anyKeywordsValueWrapper);
-
-            anyKeywordsOperation.set("values", valuesArray);
-
-            log.info("valuesArray: {}", valuesArray);
-            log.info("anyKeywordsOperation: {}", anyKeywordsOperation);
-            updateOperations.add(anyKeywordsOperation);
-
 
             //asset description operation
             final ObjectNode assetDescriptionOperation = mapper.createObjectNode();
@@ -408,50 +517,102 @@ public class AssetUtils {
             log.info("assetDescriptionOperation: {}", assetDescriptionOperation);
             updateOperations.add(assetDescriptionOperation);
 
+            //structured keywords operation
+            final ObjectNode keywordsOperation = mapper.createObjectNode();
+            keywordsOperation.put(TYPE_FIELD, "add_int");
+            keywordsOperation.put(PROPERTY_NAME_FIELD, "keywords");
+
+            final ArrayNode keywordsValues = mapper.createArrayNode();
+            keywordsValues.add("10188");
+            keywordsOperation.set(VALUES_FIELD, keywordsValues);
+            updateOperations.add(keywordsOperation);
+
+            // any keywords operation
+            final ObjectNode anyKeywordsOperation = mapper.createObjectNode();
+            anyKeywordsOperation.put(TYPE_FIELD, "replace_free_fields");
+            anyKeywordsOperation.put(PROPERTY_NAME_FIELD, "freeFields");
+
+            final ObjectNode anyKeywordsValueWrapper = mapper.createObjectNode();
+            final ObjectNode anyKeywordsValue = mapper.createObjectNode();
+
+            String enKeywords = "Keywords missing";
+            String deKeywords = "Schlüsselwörter fehlen";
+
+            if (!videoMetadataEn.getData().isEmpty() && !videoMetadataEn.getData().get(0).getKeywords().isEmpty()) {
+                List<String> keywords = videoMetadataEn.getData().get(0).getKeywords();
+                enKeywords = String.join(",\n", keywords);
+            }
+
+            if (!videoMetadataDe.getData().isEmpty() && !videoMetadataDe.getData().get(0).getKeywords().isEmpty()) {
+                List<String> keywords = videoMetadataDe.getData().get(0).getKeywords();
+                deKeywords = String.join(",\n", keywords);
+            }
+
+            anyKeywordsValue.put("EN", enKeywords);
+            anyKeywordsValue.put("DE", deKeywords);
+
+
+            anyKeywordsValueWrapper.put("@type", "text");
+            anyKeywordsValueWrapper.put("id", "10");
+            anyKeywordsValueWrapper.set("value", anyKeywordsValue);
+
+            ArrayNode valuesArray = mapper.createArrayNode();
+            valuesArray.add(anyKeywordsValueWrapper);
+
+            anyKeywordsOperation.set("values", valuesArray);
+
+            log.info("valuesArray: {}", valuesArray);
+            log.info("anyKeywordsOperation: {}", anyKeywordsOperation);
+            updateOperations.add(anyKeywordsOperation);
+
             // license operation
             final ObjectNode licenseOperation = mapper.createObjectNode();
             licenseOperation.put(TYPE_FIELD, "replace_int");
             licenseOperation.put(PROPERTY_NAME_FIELD, "license");
             licenseOperation.put(VALUE_FIELD, 132);
 
+            log.info("licenseOperation: {}", licenseOperation);
             updateOperations.add(licenseOperation);
 
             // stock ID operation
             final ObjectNode multilangOperation = mapper.createObjectNode();
             multilangOperation.put(TYPE_FIELD, "replace_multilang");
-            multilangOperation.put(PROPERTY_NAME_FIELD, "customAttribute_426");
+            multilangOperation.put(PROPERTY_NAME_FIELD, "customAttribute_276");
 
             final ObjectNode valueObject = mapper.createObjectNode();
             valueObject.put("DE", video.getVideo().getId());
             valueObject.put("EN", video.getVideo().getId());
 
+            log.info("valueObject: {}", valueObject);
             multilangOperation.set(VALUE_FIELD, valueObject);
-
+            log.info("multilangOperation: {}", multilangOperation);
             updateOperations.add(multilangOperation);
 
             // Custom attribute operation
             final ObjectNode customAttributeOperation = mapper.createObjectNode();
             customAttributeOperation.put(TYPE_FIELD, "replace_multilang");
-            customAttributeOperation.put(PROPERTY_NAME_FIELD, "customAttribute_479");
+            customAttributeOperation.put(PROPERTY_NAME_FIELD, "customAttribute_326");
 
             final ObjectNode customAttributeValue = mapper.createObjectNode();
 
             String enCustomAttribute = "<p>For further queries</p>\n\n" +
-                    "<p>Do you need the high-resolution file of this video? Please contact the ZF colleague who is responsible for Shutterstock " +
-                    "or our hotline at <a aria-label=\"Link help@lsd.de\" href=\"mailto:help@lsd.de\" id=\"menur23e\" " +
-                    "rel=\"noreferrer noopener\" target=\"_blank\" title=\"mailto:help@lsd.de\">help@lsd.de</a>. " +
-                    "Please be sure to include the media ID.</p>\n";
+              "<p>Do you need the high-resolution file of this video? Please contact the ZF colleague who is responsible for Shutterstock " +
+              "or our hotline at <a aria-label=\"Link help@lsd.de\" href=\"mailto:help@lsd.de\" id=\"menur23e\" " +
+              "rel=\"noreferrer noopener\" target=\"_blank\" title=\"mailto:help@lsd.de\">help@lsd.de</a>. " +
+              "Please be sure to include the media ID.</p>\n";
 
             String deCustomAttribute = "<p>Bei Rückfragen</p>\n\n" +
-                    "<p>Sie benötigen von diesem Video die hochauflösende Datei? Bitte kontaktieren Sie den für Shutterstock " +
-                    "zuständigen ZF-Kollegen oder unsere Hotline unter <a aria-label=\"Link help@lsd.de\" href=\"mailto:help@lsd.de\" " +
-                    "id=\"menur23g\" rel=\"noreferrer noopener\" target=\"_blank\" title=\"mailto:help@lsd.de\">help@lsd.de</a>. " +
-                    "Geben Sie bitte unbedingt die Medien-ID an.</p>\n";
+              "<p>Sie benötigen von diesem Video die hochauflösende Datei? Bitte kontaktieren Sie den für Shutterstock " +
+              "zuständigen ZF-Kollegen oder unsere Hotline unter <a aria-label=\"Link help@lsd.de\" href=\"mailto:help@lsd.de\" " +
+              "id=\"menur23g\" rel=\"noreferrer noopener\" target=\"_blank\" title=\"mailto:help@lsd.de\">help@lsd.de</a>. " +
+              "Geben Sie bitte unbedingt die Medien-ID an.</p>\n";
 
             customAttributeValue.put("EN", enCustomAttribute);
             customAttributeValue.put("DE", deCustomAttribute);
 
+            log.info("customAttributeValue: {}", customAttributeValue);
             customAttributeOperation.set(VALUE_FIELD, customAttributeValue);
+            log.info("customAttributeOperation: {}", customAttributeOperation);
             updateOperations.add(customAttributeOperation);
 
 
@@ -541,13 +702,13 @@ public class AssetUtils {
             fileNameOperation.put(TYPE_FIELD, "replace_string");
             fileNameOperation.put(PROPERTY_NAME_FIELD, "fileName");
             if (!audioMetadataEn.getData().isEmpty() && !audioMetadataEn.getData().get(0).getTitle().isEmpty()) {
-                fileNameOperation.put(VALUE_FIELD, "STOCK" + audioMetadataEn.getData().get(0).getTitle());
+                fileNameOperation.put(VALUE_FIELD, "STOCK_" + audioMetadataEn.getData().get(0).getTitle());
             } else {
                 fileNameOperation.put(VALUE_FIELD, "File name missing");
             }
 
-            updateOperations.add(titleOperation);
-            log.info("titleOperation: {}", titleOperation);
+            updateOperations.add(fileNameOperation);
+            log.info("fileNameOperation: {}", fileNameOperation);
 
             updateOperations.add(fileNameOperation);
 
@@ -579,7 +740,7 @@ public class AssetUtils {
 
             if (!audioMetadataDe.getData().isEmpty() && !audioMetadataDe.getData().get(0).getKeywords().isEmpty()) {
                 List<String> keywords = audioMetadataDe.getData().get(0).getKeywords();
-                enKeywords = String.join(",\n", keywords);
+                deKeywords = String.join(",\n", keywords);
             }
 
             anyKeywordsValue.put("EN", enKeywords);
@@ -640,7 +801,7 @@ public class AssetUtils {
             // stock ID operation
             final ObjectNode multilangOperation = mapper.createObjectNode();
             multilangOperation.put(TYPE_FIELD, "replace_multilang");
-            multilangOperation.put(PROPERTY_NAME_FIELD, "customAttribute_426");
+            multilangOperation.put(PROPERTY_NAME_FIELD, "customAttribute_276");
 
             final ObjectNode valueObject = mapper.createObjectNode();
             valueObject.put("DE", audio.getAudio().getId());
@@ -659,5 +820,4 @@ public class AssetUtils {
             return null;
         }
     }
-
 }

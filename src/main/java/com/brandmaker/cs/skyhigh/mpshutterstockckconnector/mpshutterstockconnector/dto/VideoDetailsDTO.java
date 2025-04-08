@@ -20,7 +20,7 @@ public class VideoDetailsDTO {
     private int aspect;
     @JsonProperty("aspect_ratio")
     private String aspectRatio;
-    private Map<String, VideoAssetDTO> assets;
+    private VideoAssetDTO assets;
     private List<CategoryDTO> categories;
     private ContributorIdDTO contributor;
     private String description;

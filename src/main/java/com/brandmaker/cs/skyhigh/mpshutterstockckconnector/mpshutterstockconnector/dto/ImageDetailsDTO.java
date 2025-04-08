@@ -19,7 +19,7 @@ public class ImageDetailsDTO {
     @JsonProperty("added_date")
     private String addedDate;
     private int aspect;
-    private Map<String, ImageAssetDTO> assets;
+    private ImageAssetDTO assets;
     private List<CategoryDTO> categories;
     private ContributorIdDTO contributor;
     private String description;
