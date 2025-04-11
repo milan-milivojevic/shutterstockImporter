@@ -75,7 +75,7 @@ public class ApplicationConfiguration {
         final Map<String, Object> requestContext = ((BindingProvider) mediaPoolWebServicePort).getRequestContext();
         requestContext.put(BindingProvider.USERNAME_PROPERTY, this.authenticationProperties.getUser());
         requestContext.put(BindingProvider.PASSWORD_PROPERTY, this.authenticationProperties.getPassword());
-        requestContext.put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, this.properties.getSoap_url());
+        requestContext.put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, this.properties.getSoapUrl());
 
         return mediaPoolWebServicePort;
     }

@@ -1,5 +1,6 @@
 package com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.core;
 
+import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.configurations.properties.ApplicationProperties;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.dto.*;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.services.FileService;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.services.ShutterstockService;
@@ -24,17 +25,26 @@ public class TransferAssetProcess {
     private final ReentrantLock lock = new ReentrantLock();
     private final ShutterstockService shutterstockService;
     private final FileService fileService;
+    private final ApplicationProperties applicationProperties;
     private final AtomicBoolean isInitialImportCompleted = new AtomicBoolean(false);
 
-    public TransferAssetProcess(ShutterstockService shutterstockService, FileService fileService) {
+    public TransferAssetProcess(ShutterstockService shutterstockService, FileService fileService, ApplicationProperties applicationProperties) {
         this.shutterstockService = shutterstockService;
         this.fileService = fileService;
-    }
+			  this.applicationProperties = applicationProperties;
+		}
 
     @PostConstruct
     public void initialImport() {
+        if (!applicationProperties.isRunInitialImport()) {
+            log.info("Initial import is disabled by configuration (run-initial-import=false).");
+            isInitialImportCompleted.set(true);
+            log.info("Starting scheduled tasks.");
+            return;
+        }
+
         new Thread(() -> {
-            log.info("Starting initial import of assets.");
+            log.info("Starting initial import of assets because run-initial-import=true.");
             performInitialImport();
             isInitialImportCompleted.set(true);
             log.info("Initial import completed, starting scheduled tasks.");
@@ -42,12 +52,12 @@ public class TransferAssetProcess {
     }
 
     private void performInitialImport() {
-        int batchSize = 100;
+        int batchSize = 1;
         int page = 1;
 
 //        // Process images for a single page
-//        List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
-//        processImages(allImages);
+        List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
+        processImages(allImages);
 //
 //        // Process videos for a single page
 //        List<VideoDownloadDTO> allVideos = getAllVideos(page, batchSize);
@@ -57,20 +67,20 @@ public class TransferAssetProcess {
 //        List<AudioDownloadDTO> allAudios = getAllAudios(page, batchSize);
 //        processAudios(allAudios);
 
-        List<ImageDownloadDTO> allImages;
-        do {
-            allImages = getAllImages(page, batchSize);
-            processImages(allImages);
-            page++;
-        } while (!allImages.isEmpty());
-
-        page = 1;
-        List<VideoDownloadDTO> allVideos;
-        do {
-            allVideos = getAllVideos(page, batchSize);
-            processVideos(allVideos);
-            page++;
-        } while (!allVideos.isEmpty());
+//        List<ImageDownloadDTO> allImages;
+//        do {
+//            allImages = getAllImages(page, batchSize);
+//            processImages(allImages);
+//            page++;
+//        } while (!allImages.isEmpty());
+//
+//        page = 1;
+//        List<VideoDownloadDTO> allVideos;
+//        do {
+//            allVideos = getAllVideos(page, batchSize);
+//            processVideos(allVideos);
+//            page++;
+//        } while (!allVideos.isEmpty());
     }
 
     @Scheduled(cron = "0 */15 * * * ?")

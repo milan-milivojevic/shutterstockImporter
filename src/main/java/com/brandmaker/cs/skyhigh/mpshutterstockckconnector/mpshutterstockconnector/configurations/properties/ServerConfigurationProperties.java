@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 public class ServerConfigurationProperties {
     
     private String url;
-    private String soap_url;
+    private String soapUrl;
     private Integer requestTimeout;
     private Integer maxInMemorySize;
     private Integer port;
@@ -21,12 +21,12 @@ public class ServerConfigurationProperties {
         this.url = url;
     }
 
-    public String getSoap_url() {
-        return soap_url;
+    public String getSoapUrl() {
+        return soapUrl;
     }
 
-    public void setSoap_url(String soap_url) {
-        this.soap_url = soap_url;
+    public void setSoapUrl(String soapUrl) {
+        this.soapUrl = soapUrl;
     }
 
     public Integer getRequestTimeout() {
