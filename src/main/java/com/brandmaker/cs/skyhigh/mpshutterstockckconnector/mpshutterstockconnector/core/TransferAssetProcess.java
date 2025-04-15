@@ -52,35 +52,47 @@ public class TransferAssetProcess {
     }
 
     private void performInitialImport() {
-        int batchSize = 1;
+        int batchSize = 100;
         int page = 1;
 
-//        // Process images for a single page
-        List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
-        processImages(allImages);
-//
-//        // Process videos for a single page
+        // Process images for a single page
+//        List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
+//        processImages(allImages);
+
+       // Process videos for a single page
 //        List<VideoDownloadDTO> allVideos = getAllVideos(page, batchSize);
 //        processVideos(allVideos);
-//
-//        // Process audio for a single page
+
+      // Process audio for a single page
 //        List<AudioDownloadDTO> allAudios = getAllAudios(page, batchSize);
 //        processAudios(allAudios);
 
-//        List<ImageDownloadDTO> allImages;
-//        do {
-//            allImages = getAllImages(page, batchSize);
-//            processImages(allImages);
-//            page++;
-//        } while (!allImages.isEmpty());
-//
-//        page = 1;
-//        List<VideoDownloadDTO> allVideos;
-//        do {
-//            allVideos = getAllVideos(page, batchSize);
-//            processVideos(allVideos);
-//            page++;
-//        } while (!allVideos.isEmpty());
+        while (true) {
+            try {
+                List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
+                if (allImages.isEmpty()) {
+                    break;
+                }
+                processImages(allImages);
+            } catch (Exception e) {
+                log.error("Error fetching images on page {} -> {}. Skipping this page.", page, e.getMessage());
+            }
+            page++;
+        }
+
+        page = 1;
+        while (true) {
+            try {
+                List<VideoDownloadDTO> allVideos = getAllVideos(page, batchSize);
+                if (allVideos.isEmpty()) {
+                    break;
+                }
+                processVideos(allVideos);
+            } catch (Exception e) {
+                log.error("Error fetching videos on page {} -> {}. Skipping this page.", page, e.getMessage());
+            }
+            page++;
+        }
     }
 
     @Scheduled(cron = "0 */15 * * * ?")
@@ -258,7 +270,7 @@ public class TransferAssetProcess {
 
     public List<ImageDownloadDTO> getAllImagesByDate(String date) {
         int page = 1;
-        int batchSize = 50;
+        int batchSize = 100;
         List<ImageDownloadDTO> allImages;
         allImages = shutterstockService.getLicencedImagesByDate(page, batchSize, date, "images").getData();
         return allImages;
@@ -266,7 +278,7 @@ public class TransferAssetProcess {
 
     public List<VideoDownloadDTO> getAllVideosByDate(String date) {
         int page = 1;
-        int batchSize = 20;
+        int batchSize = 50;
         List<VideoDownloadDTO> allVideos;
         allVideos = shutterstockService.getLicencedVideosByDate(page, batchSize, date, "videos").getData();
         return allVideos;
@@ -274,7 +286,7 @@ public class TransferAssetProcess {
 
     public List<AudioDownloadDTO> getAllAudiosByDate(String date) {
         int page = 1;
-        int batchSize = 20;
+        int batchSize = 50;
         List<AudioDownloadDTO> allAudios;
         allAudios = shutterstockService.getLicencedAudiosByDate(page, batchSize, date, "audio").getData();
         return allAudios;
