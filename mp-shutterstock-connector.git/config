@@ -1,0 +1,13 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = true
+	symlinks = false
+	ignorecase = true
+[remote "origin"]
+	url = git@gitlab.dev.brandmaker.com:si/customer/zf-friedrichshafen-ag/mp-shutterstock-connector.git
+	fetch = +refs/*:refs/*
+	mirror = true
+[remote "github"]
+	url = git@github.com:milan-milivojevic/shutterstockImporter.git
+	fetch = +refs/heads/*:refs/remotes/github/*

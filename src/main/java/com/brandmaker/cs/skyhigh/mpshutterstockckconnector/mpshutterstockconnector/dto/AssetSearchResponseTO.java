@@ -1,87 +1,66 @@
 package com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.dto;
 
-import java.util.List;
-import java.util.Objects;
-
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
-
+/**
+ * Simplified response object for Media Pool asset search,
+ * providing both raw items list and extracted assetId as a String.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AssetSearchResponseTO {
 
-    @JsonProperty("@type")
-    private String type;
-    private List<AssetSearchItemTO> items;
-    private SearchPagingTO paging;
-    private int totalHits;
+    private final List<JsonNode> items;
+    private final String assetId;
 
-    public AssetSearchResponseTO() {
+    /**
+     * Parses the response JSON, populates items array and extracts assetId
+     * from: items[0].fields.versions.items[0].fields.assetId.value
+     */
+    @JsonCreator
+    public AssetSearchResponseTO(JsonNode root) {
+        JsonNode itemsNode = root.path("items");
+        if (itemsNode.isArray() && itemsNode.size() > 0) {
+            List<JsonNode> temp = new ArrayList<>();
+            for (JsonNode node : itemsNode) {
+                temp.add(node);
+            }
+            this.items = temp;
+            // extract assetId as text
+            JsonNode versionItems = itemsNode.get(0)
+              .path("fields")
+              .path("versions")
+              .path("items");
+            if (versionItems.isArray() && versionItems.size() > 0) {
+                JsonNode idNode = versionItems.get(0)
+                  .path("fields")
+                  .path("assetId")
+                  .path("value");
+                this.assetId = idNode.isNull() ? null : idNode.asText();
+            } else {
+                this.assetId = null;
+            }
+        } else {
+            this.items = Collections.emptyList();
+            this.assetId = null;
+        }
     }
 
-    public AssetSearchResponseTO(final String type, final List<AssetSearchItemTO> items, final SearchPagingTO paging,
-                                 final int totalHits) {
-        this.type = type;
-        this.items = items;
-        this.paging = paging;
-        this.totalHits = totalHits;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(final String type) {
-        this.type = type;
-    }
-
-    public List<AssetSearchItemTO> getItems() {
+    /**
+     * Returns the raw items JSON list from the response.
+     */
+    public List<JsonNode> getItems() {
         return items;
     }
 
-    public void setItems(final List<AssetSearchItemTO> items) {
-        this.items = items;
-    }
-
-    public SearchPagingTO getPaging() {
-        return paging;
-    }
-
-    public void setPaging(final SearchPagingTO paging) {
-        this.paging = paging;
-    }
-
-    public int getTotalHits() {
-        return totalHits;
-    }
-
-    public void setTotalHits(final int totalHits) {
-        this.totalHits = totalHits;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof AssetSearchResponseTO)) return false;
-        AssetSearchResponseTO that = (AssetSearchResponseTO) o;
-        return totalHits == that.totalHits &&
-                Objects.equals(type, that.type) &&
-                Objects.equals(items, that.items) &&
-                Objects.equals(paging, that.paging);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(type, items, paging, totalHits);
-    }
-
-    @Override
-    public String toString() {
-        return "AssetSearchResponseTO{" +
-                "type='" + type + '\'' +
-                ", items=" + items +
-                ", paging=" + paging +
-                ", totalHits=" + totalHits +
-                '}';
+    /**
+     * Returns the extracted assetId as String, or null if not found.
+     */
+    public String getAssetId() {
+        return assetId;
     }
 }

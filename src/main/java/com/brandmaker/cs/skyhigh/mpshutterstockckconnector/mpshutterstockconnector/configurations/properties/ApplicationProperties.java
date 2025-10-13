@@ -7,7 +7,10 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "application")
 public class ApplicationProperties {
 
-	private boolean runInitialImport = false;
+	private boolean runInitialImport = true;
+	private boolean runInitialUpdate = false;
+
+	private boolean runVectorImagesUpdate = false;
 
 	public boolean isRunInitialImport() {
 		return runInitialImport;
@@ -15,5 +18,21 @@ public class ApplicationProperties {
 
 	public void setRunInitialImport(boolean runInitialImport) {
 		this.runInitialImport = runInitialImport;
+	}
+
+	public boolean isRunInitialUpdate() {
+		return runInitialUpdate;
+	}
+
+	public void setRunInitialUpdate(boolean runInitialUpdate) {
+		this.runInitialUpdate = runInitialUpdate;
+	}
+
+	public boolean isRunVectorImagesUpdate() {
+		return runVectorImagesUpdate;
+	}
+
+	public void setRunVectorImagesUpdate(boolean runVectorImagesUpdate) {
+		this.runVectorImagesUpdate = runVectorImagesUpdate;
 	}
 }

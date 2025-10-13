@@ -4,6 +4,7 @@ import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnect
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.dto.*;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.services.FileService;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.services.ShutterstockService;
+import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.jobs.UpdateVectorImages;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -26,13 +27,16 @@ public class TransferAssetProcess {
     private final ShutterstockService shutterstockService;
     private final FileService fileService;
     private final ApplicationProperties applicationProperties;
+    private final UpdateVectorImages updateVectorImages;
     private final AtomicBoolean isInitialImportCompleted = new AtomicBoolean(false);
+    private final AtomicBoolean isInitialUpdateCompleted = new AtomicBoolean(true);
 
-    public TransferAssetProcess(ShutterstockService shutterstockService, FileService fileService, ApplicationProperties applicationProperties) {
+    public TransferAssetProcess(ShutterstockService shutterstockService, FileService fileService, ApplicationProperties applicationProperties, UpdateVectorImages updateVectorImages) {
         this.shutterstockService = shutterstockService;
         this.fileService = fileService;
-			  this.applicationProperties = applicationProperties;
-		}
+        this.applicationProperties = applicationProperties;
+        this.updateVectorImages = updateVectorImages;
+    }
 
     @PostConstruct
     public void initialImport() {
@@ -52,53 +56,106 @@ public class TransferAssetProcess {
     }
 
     private void performInitialImport() {
-        int batchSize = 100;
-        int page = 1;
+        int batchSize = 1;
+        int page = 1748;
 
         // Process images for a single page
-//        List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
-//        processImages(allImages);
+        List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
+        processImages(allImages);
 
-       // Process videos for a single page
+        // Process videos for a single page
 //        List<VideoDownloadDTO> allVideos = getAllVideos(page, batchSize);
 //        processVideos(allVideos);
 
-      // Process audio for a single page
+        // Process audio for a single page
 //        List<AudioDownloadDTO> allAudios = getAllAudios(page, batchSize);
 //        processAudios(allAudios);
 
-        while (true) {
-            try {
-                List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
-                if (allImages.isEmpty()) {
-                    break;
-                }
-                processImages(allImages);
-            } catch (Exception e) {
-                log.error("Error fetching images on page {} -> {}. Skipping this page.", page, e.getMessage());
-            }
-            page++;
+//        while (true) {
+//            try {
+//                List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
+//                if (allImages.isEmpty()) {
+//                    break;
+//                }
+//                processImages(allImages);
+//            } catch (Exception e) {
+//                log.error("Error fetching images on page {} -> {}. Skipping this page.", page, e.getMessage());
+//            }
+//            page++;
+//        }
+//
+//        page = 1;
+//        while (true) {
+//            try {
+//                List<VideoDownloadDTO> allVideos = getAllVideos(page, batchSize);
+//                if (allVideos.isEmpty()) {
+//                    break;
+//                }
+//                processVideos(allVideos);
+//            } catch (Exception e) {
+//                log.error("Error fetching videos on page {} -> {}. Skipping this page.", page, e.getMessage());
+//            }
+//            page++;
+//        }
+    }
+
+    @PostConstruct
+    public void initialUpdate() {
+        if (!applicationProperties.isRunInitialUpdate()) {
+            log.info("Initial update is disabled by configuration (run-initial-update=false).");
+            isInitialUpdateCompleted.set(true);
+            return;
         }
 
-        page = 1;
-        while (true) {
-            try {
-                List<VideoDownloadDTO> allVideos = getAllVideos(page, batchSize);
-                if (allVideos.isEmpty()) {
-                    break;
-                }
-                processVideos(allVideos);
-            } catch (Exception e) {
-                log.error("Error fetching videos on page {} -> {}. Skipping this page.", page, e.getMessage());
-            }
-            page++;
+        new Thread(() -> {
+            log.info("Starting initial update of existing assets because run-initial-update=true.");
+            performInitialUpdate();
+            isInitialUpdateCompleted.set(true);
+            log.info("Initial update completed.");
+        }).start();
+    }
+
+    private void performInitialUpdate() {
+        int batchSize = 1;
+        int page = 1751;
+
+        List<ImageDownloadDTO> singlePage = getAllImages(page, batchSize);
+        processExistingImages(singlePage);
+
+//        while (true) {
+//            try {
+//                List<ImageDownloadDTO> images = getAllImages(page, batchSize);
+//                if (images.isEmpty()) break;
+//                processExistingImages(images);
+//            } catch (Exception e) {
+//                log.error("Error fetching images on page {} -> {}. Skipping this page.", page, e.getMessage());
+//            }
+//            page++;
+//        }
+    }
+
+    @PostConstruct
+    public void runVectorImagesUpdate() {
+        if (!applicationProperties.isRunVectorImagesUpdate()) {
+            log.info("Vector images update is disabled by configuration (run-vector-images-update=false).");
+            return;
         }
+        new Thread(() -> {
+            log.info("Starting vector images update because run-vector-images-update=true.");
+            updateVectorImages.run();
+            log.info("Vector images update completed.");
+        }).start();
     }
 
     @Scheduled(cron = "0 */15 * * * ?")
     public void uploadAssets() {
         if (!isInitialImportCompleted.get()) {
             log.info("Initial import not completed, skipping scheduled task.");
+            return;
+        }
+
+        if (!isInitialUpdateCompleted.get()) {
+            log.info("Initial update not completed, skipping scheduled task.");
             return;
         }
 
@@ -149,7 +206,17 @@ public class TransferAssetProcess {
                 log.info(imageMetadataEn.getData().get(0).getOriginalFilename());
 
                 String imageUrl = licensedImage.getUrl();
-                String tempImagePath = imageMetadataEn.getData().get(0).getOriginalFilename();
+
+                String id = imageMetadataEn.getData().get(0).getId();
+                String type = imageMetadataEn.getData().get(0).getImageType();
+
+                String tempImagePath;
+                if ("vector".equalsIgnoreCase(type)) {
+                    tempImagePath = id + ".eps";
+                } else {
+                    tempImagePath = id + ".jpg";
+                }
+
 
                 try {
                     File downloadedImagePath = fileService.downloadImage(imageUrl, tempImagePath);
@@ -168,6 +235,28 @@ public class TransferAssetProcess {
                 }
             } catch (Exception e) {
                 log.error("Error processing image with ID {}: {}", item.getId(), e.getMessage());
+            }
+        }
+    }
+
+    private void processExistingImages(List<ImageDownloadDTO> allImages) {
+        for (ImageDownloadDTO item : allImages) {
+            try {
+                Long imageId = Long.parseLong(item.getImage().getId());
+                log.info("Image id: " + imageId);
+                ShutterstockImageMetadataDto imageMetadataEn = shutterstockService.getMetadata(imageId, "images", "en");
+                if (imageMetadataEn.getData().isEmpty())
+                    continue;
+                ShutterstockImageMetadataDto imageMetadataDe = shutterstockService.getMetadata(imageId, "images", "de");
+                if (imageMetadataDe.getData().isEmpty())
+                    continue;
+
+                log.info(imageMetadataEn.getData().get(0).getOriginalFilename());
+
+                fileService.updateExistingAssets(item, imageMetadataEn, imageMetadataDe);
+
+            } catch (Exception e) {
+                log.error("Error while updating image with ID {}: {}", item.getId(), e.getMessage());
             }
         }
     }
@@ -193,7 +282,7 @@ public class TransferAssetProcess {
 
                 try {
                     File downloadedVideoPath = fileService.downloadImage(videoUrl, tempVideoPath);
-                    log.info("DownloadedVideoPath: {}", downloadedVideoPath);
+                    log.info("downloadedVideoPath: {}", downloadedVideoPath);
                     fileService.loadVideoFileAndProcess(downloadedVideoPath, item, videoMetadataEn, videoMetadataDe);
                 } catch (IOException e) {
                     log.error("Failed to download video: {}", e.getMessage());

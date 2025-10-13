@@ -83,6 +83,29 @@ public class FileService {
 
     }
 
+    public void updateExistingAssets(ImageDownloadDTO image, ShutterstockImageMetadataDto imageMetadataEn, ShutterstockImageMetadataDto imageMetadataDe) throws IOException {
+        try {
+            AssetSearchTO searchTO = AssetSearchTO.createPayloadWithShutterstockImageId(image.getImage().getId());
+            log.info("Searching asset for Shutterstock ID={} …", image.getImage().getId());
+            log.info("Search payload: {}", searchTO);
+
+            AssetSearchResponseTO response = assetService.searchAssets(searchTO);
+            log.info("Search finished. Items found: {}", response.getItems() == null ? 0 : response.getItems().size());
+
+
+            if (!response.getItems().isEmpty()) {
+                final AssetMetadataTO assetMetadataTO =
+                  AssetUtils.computeExistingAssetMetadata(response.getAssetId(), image, imageMetadataEn, imageMetadataDe);
+                this.assetService.updateAssetMetadata(assetMetadataTO);
+            } else {
+                log.error("Cannot update asset. Empty response returned.");
+            }
+        } catch (Exception e) {
+            log.error("Error in updateExistingAssets: {}", e.getMessage(), e);
+        }
+    }
+
+
     public void loadVideoFileAndProcess(File filePath, VideoDownloadDTO video, ShutterstockVideoMetadataDto videoMetadataEn, ShutterstockVideoMetadataDto videoMetadataDe) {
         try {
             UploadMediaResult response = assetService.uploadFileToMediaPool(filePath);

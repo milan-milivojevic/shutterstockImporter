@@ -4,9 +4,13 @@ import java.util.List;
 
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.services.AuthService;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.utils.JwtUtils;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
@@ -40,18 +44,18 @@ public class WebClientHelper {
      * @return {@link ResponseEntity} of the class
      */
     public <T> ResponseEntity<T> sendPostRequest(final String endpoint, final Object body,
-            final MediaType mediaType, final Class<T> clazz, final Object... pathParams) {
+                                                 final MediaType mediaType, final Class<T> clazz, final Object... pathParams) {
 
         return this.webClient.post().uri(uriBuilder ->
-                        uriBuilder.path(endpoint)
-                                .build(pathParams)
-                )
-                .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
-                .contentType(mediaType)
-                .bodyValue(body)
-                .retrieve()
-                .toEntity(clazz)
-                .block();
+            uriBuilder.path(endpoint)
+              .build(pathParams)
+          )
+          .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
+          .contentType(mediaType)
+          .bodyValue(body)
+          .retrieve()
+          .toEntity(clazz)
+          .block();
     }
 
     /**
@@ -67,12 +71,12 @@ public class WebClientHelper {
                                                   final Class<T> clazz) {
 
         return this.webClient.patch().uri(endpoint)
-                .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
-                .contentType(mediaType)
-                .body(BodyInserters.fromValue(body))
-                .retrieve()
-                .toEntity(clazz)
-                .block();
+          .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
+          .contentType(mediaType)
+          .body(BodyInserters.fromValue(body))
+          .retrieve()
+          .toEntity(clazz)
+          .block();
     }
 
     /**
@@ -87,12 +91,12 @@ public class WebClientHelper {
                                                            final MultiValueMap<String, String> body, final Class<T> clazz) {
 
         return this.webClient.post().uri(endpoint)
-                .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(BodyInserters.fromFormData(body))
-                .retrieve()
-                .toEntity(clazz)
-                .block();
+          .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
+          .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+          .body(BodyInserters.fromFormData(body))
+          .retrieve()
+          .toEntity(clazz)
+          .block();
     }
 
     /**
@@ -108,20 +112,20 @@ public class WebClientHelper {
                                                 final Object... params) {
 
         return this.webClient.put().uri(uriBuilder ->
-                        uriBuilder.path(endpoint)
-                                .build(params)
-                )
-                .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(body)
-                .retrieve()
-                .toEntity(clazz)
-                .block();
+            uriBuilder.path(endpoint)
+              .build(params)
+          )
+          .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
+          .contentType(MediaType.APPLICATION_JSON)
+          .bodyValue(body)
+          .retrieve()
+          .toEntity(clazz)
+          .block();
     }
 
     /**
      * Send GET request with path parameters and query parameters
-     * 
+     *
      * @param endpoint    Endpoint where the request is going to be sent
      * @param queryParams Query parameters
      * @param clazz       Class that shows the response type
@@ -129,17 +133,17 @@ public class WebClientHelper {
      * @return {@link ResponseEntity} of class
      */
     public <T> ResponseEntity<T> sendGetRequest(final String endpoint, final MultiValueMap<String, String> queryParams,
-                    final Class<T> clazz, final Object... pathParams) {
+                                                final Class<T> clazz, final Object... pathParams) {
 
         final UriComponents uriComponents = UriComponentsBuilder.fromUriString(endpoint)
-                        .queryParams(queryParams)
-                        .buildAndExpand(pathParams);
+          .queryParams(queryParams)
+          .buildAndExpand(pathParams);
 
         return this.webClient.get().uri(uriComponents.toString())
-                .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
-                .retrieve()
-                .toEntity(clazz)
-                .block();
+          .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
+          .retrieve()
+          .toEntity(clazz)
+          .block();
     }
 
     /**
@@ -154,13 +158,74 @@ public class WebClientHelper {
                                                       final Object... pathParams) {
 
         final UriComponents uriComponents = UriComponentsBuilder.fromUriString(endpoint)
-                .buildAndExpand(pathParams);
+          .buildAndExpand(pathParams);
 
         return this.webClient.get().uri(uriComponents.toString())
-                .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
-                .retrieve()
-                .toEntityList(clazz)
-                .block();
+          .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
+          .retrieve()
+          .toEntityList(clazz)
+          .block();
+    }
+
+    public ResponseEntity<JsonNode> sendGetJson(final String endpoint, final Object... pathParams) {
+        return this.webClient.get().uri(uriBuilder ->
+            uriBuilder.path(endpoint).build(pathParams)
+          )
+          .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
+          .retrieve()
+          .toEntity(JsonNode.class)
+          .block();
+    }
+
+    public ResponseEntity<JsonNode> sendPostJson(final String endpoint, final Object body, final Object... pathParams) {
+        return this.webClient.post().uri(uriBuilder ->
+            uriBuilder.path(endpoint).build(pathParams)
+          )
+          .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
+          .contentType(MediaType.APPLICATION_JSON)
+          .bodyValue(body)
+          .retrieve()
+          .toEntity(JsonNode.class)
+          .block();
+    }
+
+    public ResponseEntity<JsonNode> sendPostMultipart(final String endpoint, final MultiValueMap<String, ?> parts,
+                                                      final Object... pathParams) {
+        return this.webClient.post().uri(uriBuilder ->
+            uriBuilder.path(endpoint).build(pathParams)
+          )
+          .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
+          .contentType(MediaType.MULTIPART_FORM_DATA)
+          .body(BodyInserters.fromMultipartData(parts))
+          .retrieve()
+          .toEntity(JsonNode.class)
+          .block();
+    }
+
+    public MultiValueMap<String, ?> buildMultipart(final String commentFieldName,
+                                                   final String commentValue,
+                                                   final String fileFieldName,
+                                                   final Resource fileResource,
+                                                   final MediaType fileContentType,
+                                                   final String filename) {
+        final MultipartBodyBuilder builder = new MultipartBodyBuilder();
+        builder.part(commentFieldName, commentValue);
+        final MultipartBodyBuilder.PartBuilder filePart = builder.part(fileFieldName, fileResource);
+        if (fileContentType != null) {
+            filePart.contentType(fileContentType);
+        }
+        final String effectiveFilename = (filename != null && !filename.isBlank())
+          ? filename
+          : (fileResource.getFilename() != null ? fileResource.getFilename() : "upload.bin");
+        filePart.header(
+          HttpHeaders.CONTENT_DISPOSITION,
+          ContentDisposition.builder("form-data")
+            .name(fileFieldName)
+            .filename(effectiveFilename)
+            .build()
+            .toString()
+        );
+        return builder.build();
     }
 
     /**

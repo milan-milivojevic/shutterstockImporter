@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -98,6 +100,10 @@ public class AssetUtils {
             String enTitle = "Asset name  missing";
             String deTitle = "Asset-Name  fehlt";
 
+            OffsetDateTime odt = OffsetDateTime.parse(image.getDownloadTime());
+            LocalDate downloadDate = odt.atZoneSameInstant(ZoneId.of("UTC")).toLocalDate();
+            boolean isDigital = "media_digital".equals(image.getLicense());
+
             if (!imageMetadataEn.getData().isEmpty()) {
 
                 String shutterstockId = image.getImage().getId();
@@ -149,8 +155,12 @@ public class AssetUtils {
 
                 String currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
 
-                enTitle = String.format("STOCK Image %s %s %s %s", shutterstockId, descriptionEn, format, currentDate);
-                deTitle = String.format("STOCK Bild %s %s %s %s", shutterstockId, descriptionDe, format, currentDate);
+                String licenseTime = "licensed " + downloadDate.format(DateTimeFormatter.ofPattern("MM/dd/yyyy"));
+
+                String licenseType = isDigital ? "digital" : "";
+
+                enTitle = String.format("STOCK Image %s %s %s %s %s %s", shutterstockId, descriptionEn, format, currentDate, licenseType, licenseTime);
+                deTitle = String.format("STOCK Bild %s %s %s %s %s %s", shutterstockId, descriptionDe, format, currentDate, licenseType, licenseTime);
             }
 
             titleValue.put("EN", enTitle);
@@ -200,12 +210,18 @@ public class AssetUtils {
 
             String currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
 
+            String licenseTime = "licensed_" + downloadDate.format(DateTimeFormatter.ofPattern("MM_dd_yyyy"));
+
+            String licenseType = isDigital ? "digital_" : "";
+
             String finalFileName = String.format(
-              "STOCK_IMG_%s_%s_%s_%s",
+              "STOCK_IMG_%s_%s_%s_%s_%s%s",
               shutterstockId,
               description,
               format,
-              currentDate
+              currentDate,
+              licenseType,
+              licenseTime
             );
 
             log.info("finalFileName: {}", finalFileName);
@@ -295,7 +311,7 @@ public class AssetUtils {
             final ObjectNode licenseOperation = mapper.createObjectNode();
             licenseOperation.put(TYPE_FIELD, "replace_int");
             licenseOperation.put(PROPERTY_NAME_FIELD, "license");
-            licenseOperation.put(VALUE_FIELD, 123);
+            licenseOperation.put(VALUE_FIELD, isDigital ? 124 : 123);
 
             updateOperations.add(licenseOperation);
 
@@ -313,6 +329,172 @@ public class AssetUtils {
             updateOperations.add(multilangOperation);
 
 
+
+            assetMetadataTO.setUpdateOperations(updateOperations);
+            return assetMetadataTO;
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public static AssetMetadataTO computeExistingAssetMetadata(final String mediaGuid, ImageDownloadDTO image, ShutterstockImageMetadataDto imageMetadataEn, ShutterstockImageMetadataDto imageMetadataDe) {
+
+        try {
+            final AssetMetadataTO assetMetadataTO = new AssetMetadataTO();
+            final List<String> assetIds = new ArrayList<>(Collections.singletonList(mediaGuid));
+
+            assetMetadataTO.setAssetIds(assetIds);
+            assetMetadataTO.setErrorHandlingStrategy(ERROR_HANDLING_STRATEGY);
+
+            final ObjectMapper mapper = new ObjectMapper();
+            final ArrayNode updateOperations = mapper.createArrayNode();
+
+            // Asset title operation
+            final ObjectNode titleOperation = mapper.createObjectNode();
+            titleOperation.put(TYPE_FIELD, "replace_multilang");
+            titleOperation.put(PROPERTY_NAME_FIELD, "assetTitle");
+
+            final ObjectNode titleValue = mapper.createObjectNode();
+            String enTitle = "Asset name  missing";
+            String deTitle = "Asset-Name  fehlt";
+
+            OffsetDateTime odt = OffsetDateTime.parse(image.getDownloadTime());
+            LocalDate downloadDate = odt.atZoneSameInstant(ZoneId.of("UTC")).toLocalDate();
+            boolean isDigital = "media_digital".equals(image.getLicense());
+
+            if (!imageMetadataEn.getData().isEmpty()) {
+
+                String shutterstockId = image.getImage().getId();
+
+                String descriptionEn = imageMetadataEn.getData().get(0).getDescription();
+
+                if (!descriptionEn.isEmpty()) {
+                    int commaIndex = descriptionEn.indexOf(",");
+                    int periodIndex = descriptionEn.indexOf(".");
+                    int cutoffIndex;
+                    if (commaIndex == -1 && periodIndex == -1) {
+                        cutoffIndex = descriptionEn.length();  // No comma or period, use entire description
+                    } else if (commaIndex == -1) {
+                        cutoffIndex = periodIndex;  // Only period exists
+                    } else if (periodIndex == -1) {
+                        cutoffIndex = commaIndex;  // Only comma exists
+                    } else {
+                        cutoffIndex = Math.min(commaIndex, periodIndex);  // Both exist, take the first
+                    }
+                    descriptionEn = descriptionEn.substring(0, cutoffIndex);
+                } else {
+                    descriptionEn = "Description missing";
+                }
+
+                String descriptionDe = imageMetadataDe.getData().get(0).getDescription();
+
+                if (!descriptionDe.isEmpty()) {
+                    int commaIndex = descriptionDe.indexOf(",");
+                    int periodIndex = descriptionDe.indexOf(".");
+                    int cutoffIndex;
+                    if (commaIndex == -1 && periodIndex == -1) {
+                        cutoffIndex = descriptionDe.length();
+                    } else if (commaIndex == -1) {
+                        cutoffIndex = periodIndex;
+                    } else if (periodIndex == -1) {
+                        cutoffIndex = commaIndex;
+                    } else {
+                        cutoffIndex = Math.min(commaIndex, periodIndex);
+                    }
+                    descriptionDe = descriptionDe.substring(0, cutoffIndex);
+                } else {
+                    descriptionDe = "Beschreibung fehlt";
+                }
+
+                int width = imageMetadataEn.getData().get(0).getAssets().getHugeJpg().getWidth();
+                int height = imageMetadataEn.getData().get(0).getAssets().getHugeJpg().getHeight();
+
+                String format = width + " x " + height + " px";
+
+                String currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
+
+                String licenseTime = "licensed " + downloadDate.format(DateTimeFormatter.ofPattern("MM/dd/yyyy"));
+
+                String licenseType = isDigital ? "digital" : "";
+
+                enTitle = String.format("STOCK Image %s %s %s %s %s %s", shutterstockId, descriptionEn, format, currentDate, licenseType, licenseTime);
+                deTitle = String.format("STOCK Bild %s %s %s %s %s %s", shutterstockId, descriptionDe, format, currentDate, licenseType, licenseTime);
+            }
+
+            titleValue.put("EN", enTitle);
+            titleValue.put("DE", deTitle);
+
+            log.info("titleValue: {}", titleValue);
+            titleOperation.set(VALUE_FIELD, titleValue);
+            log.info("titleOperation: {}", titleOperation);
+            updateOperations.add(titleOperation);
+
+            // file name operation
+            final ObjectNode fileNameOperation = mapper.createObjectNode();
+            fileNameOperation.put(TYPE_FIELD, "replace_string");
+            fileNameOperation.put(PROPERTY_NAME_FIELD, "fileName");
+
+            String shutterstockId = image.getImage().getId();
+
+            String description = "Description missing";
+            if (!imageMetadataEn.getData().isEmpty()) {
+                String descriptionEn = imageMetadataEn.getData().get(0).getDescription();
+                if (!descriptionEn.isEmpty()) {
+                    // Find the indices of the first comma and period
+                    int commaIndex = descriptionEn.indexOf(",");
+                    int periodIndex = descriptionEn.indexOf(".");
+
+                    // Determine the cutoff index based on which comes first and exists
+                    int cutoffIndex;
+                    if (commaIndex == -1 && periodIndex == -1) {
+                        cutoffIndex = descriptionEn.length(); // No comma or period, use entire description
+                    } else if (commaIndex == -1) {
+                        cutoffIndex = periodIndex; // Only period exists
+                    } else if (periodIndex == -1) {
+                        cutoffIndex = commaIndex; // Only comma exists
+                    } else {
+                        cutoffIndex = Math.min(commaIndex, periodIndex); // Both exist, take the first
+                    }
+
+                    // Set the description up to the cutoff index, replacing spaces with underscores
+                    description = descriptionEn.substring(0, cutoffIndex).replace(" ", "_");
+                }
+            }
+
+            int width = imageMetadataEn.getData().get(0).getAssets().getHugeJpg().getWidth();
+            int height = imageMetadataEn.getData().get(0).getAssets().getHugeJpg().getHeight();
+
+            String format = width + "_x_" + height + "_px";
+
+            String currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
+
+            String licenseTime = "licensed_" + downloadDate.format(DateTimeFormatter.ofPattern("MM_dd_yyyy"));
+
+            String licenseType = isDigital ? "digital_" : "";
+
+            String finalFileName = String.format(
+              "STOCK_IMG_%s_%s_%s_%s_%s%s.eps",
+              shutterstockId,
+              description,
+              format,
+              currentDate,
+              licenseType,
+              licenseTime
+            );
+
+            log.info("finalFileName: {}", finalFileName);
+            fileNameOperation.put(VALUE_FIELD, finalFileName);
+            log.info("fileNameOperation: {}", fileNameOperation);
+            updateOperations.add(fileNameOperation);
+
+            // license operation
+            final ObjectNode licenseOperation = mapper.createObjectNode();
+            licenseOperation.put(TYPE_FIELD, "replace_int");
+            licenseOperation.put(PROPERTY_NAME_FIELD, "license");
+            licenseOperation.put(VALUE_FIELD, isDigital ? 124 : 123);
+
+            updateOperations.add(licenseOperation);
 
             assetMetadataTO.setUpdateOperations(updateOperations);
             return assetMetadataTO;

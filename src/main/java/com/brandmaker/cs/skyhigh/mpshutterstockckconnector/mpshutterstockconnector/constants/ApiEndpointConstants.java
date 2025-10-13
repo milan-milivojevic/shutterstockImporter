@@ -38,7 +38,11 @@ public class ApiEndpointConstants {
     public static final String REST_MP = "/rest/mp";
     public static final String REST_MP_V12 = REST_MP + "/v1.2";
     public static final String REST_MP_V11 = REST_MP + "/v1.1";
+    public static final String REST_MP_V10 = "/rest/mp/v1.0";
     public static final String REST_MP_ASSETS = REST_MP_V12 + "/assets";
     public static final String REST_MP_SEARCH = REST_MP_V11 + "/search";
+    public static final String REST_MP_V10_ASSET_VERSIONS = REST_MP_V10 + "/versions/assets/{assetId}";
+    public static final String REST_MP_V10_SET_OFFICIAL = REST_MP_V10 + "/assets/{assetId}/versions/{version}/_set-official";
+    public static final String REMOVE_MEDIA_VERSION = "/RemoveMediaVersion.do?ajax=true&mediaGUID={assetId}&versionNumber={version}";
 
 }

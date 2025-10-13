@@ -78,12 +78,20 @@ public class AssetService {
      * @return An AssetSearchResponseTO object representing the response from the asset search.
      */
     public AssetSearchResponseTO searchAssets(final AssetSearchTO assetSearchTO) {
-        return webClientHelper.sendPostRequest(
-                ApiEndpointConstants.REST_MP_SEARCH,
-                assetSearchTO,
-                MediaType.APPLICATION_JSON,
-                AssetSearchResponseTO.class
-        ).getBody();
-    }
 
+        log.info("Calling MP search endpoint: {}", ApiEndpointConstants.REST_MP_SEARCH);
+        log.info("Request payload: {}", assetSearchTO);
+
+        try {
+            ResponseEntity<AssetSearchResponseTO> response = webClientHelper.sendPostRequest( ApiEndpointConstants.REST_MP_SEARCH, assetSearchTO, MediaType.APPLICATION_JSON,AssetSearchResponseTO.class);
+
+            log.info("MP search HTTP status: {}", response.getStatusCode());
+            log.info("MP search raw response body: {}", response.getBody());
+
+            return response.getBody();
+        } catch (Exception ex) {
+            log.error("MP search call FAILED – {}", ex.getMessage(), ex);
+            throw ex;
+        }
+    }
 }

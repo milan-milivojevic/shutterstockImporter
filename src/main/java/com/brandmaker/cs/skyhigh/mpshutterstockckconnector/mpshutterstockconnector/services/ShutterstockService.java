@@ -3,6 +3,7 @@ package com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnec
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.constants.Endpoints;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.dto.*;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.helpers.WebClientShutterstockHelper;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -89,4 +90,14 @@ public class ShutterstockService {
         return webClientHelper.sendGetRequest(path, ContributorDTO.class).getBody();
     }
 
+    public JsonNode getLicencedImagesRaw(Integer page, Integer perPage, String assetType) {
+        String path = String.format(Endpoints.GET_IMAGES, assetType, page, perPage);
+        return webClientHelper.sendGetRequest(path, JsonNode.class, Object.class).getBody();
+    }
+
+    public String requestImageDownloadUrl(String id, String assetType) {
+        String emptyJson = "{}";
+        JsonNode node = webClientHelper.sendPostRequest(String.format(Endpoints.LICENSED_IMAGE, assetType, id), emptyJson, JsonNode.class).getBody();
+        return node != null ? node.path("url").asText(null) : null;
+    }
 }
