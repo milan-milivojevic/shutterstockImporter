@@ -65,13 +65,13 @@ public class ApplicationConfiguration {
     }
 
     @Bean
-    MediaPoolService mediaPoolService() {
+    MediaPoolService generatedMediaPoolService() {
         return new MediaPoolService();
     }
 
     @Bean
-    MediaPoolWebServicePort mediaPoolWebServicePort(final MediaPoolService mediaPoolService) {
-        final MediaPoolWebServicePort mediaPoolWebServicePort = mediaPoolService.getMediaPoolPort();
+    MediaPoolWebServicePort mediaPoolWebServicePort(final MediaPoolService generatedMediaPoolService) {
+        final MediaPoolWebServicePort mediaPoolWebServicePort = generatedMediaPoolService.getMediaPoolPort();
         final Map<String, Object> requestContext = ((BindingProvider) mediaPoolWebServicePort).getRequestContext();
         requestContext.put(BindingProvider.USERNAME_PROPERTY, this.authenticationProperties.getUser());
         requestContext.put(BindingProvider.PASSWORD_PROPERTY, this.authenticationProperties.getPassword());
