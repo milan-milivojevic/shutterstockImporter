@@ -1,8 +1,8 @@
 application:
 
   run_initial_import: true
-  run_initial_update: false
-  run_vector_images_update: false
+  run_initial_update: true
+  run_vector_images_update: true
 
   authentication:
     user: uptempo-shutterstock-import

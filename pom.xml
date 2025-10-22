@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.brandmaker.cs.skyhigh.mpshutterstockckconnector</groupId>
     <artifactId>zf-mp-shutterstock-connector</artifactId>
-    <version>0.0.6</version>
+    <version>0.0.7</version>
     <name>mp-shutterstock-connector</name>
     <description>mp-shutterstock-connector</description>
     <url/>
