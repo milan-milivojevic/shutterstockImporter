@@ -16,7 +16,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
@@ -28,8 +29,9 @@ public class TransferAssetProcess {
     private final FileService fileService;
     private final ApplicationProperties applicationProperties;
     private final UpdateVectorImages updateVectorImages;
-    private final AtomicBoolean isInitialImportCompleted = new AtomicBoolean(false);
-    private final AtomicBoolean isInitialUpdateCompleted = new AtomicBoolean(true);
+    private final CompletableFuture<Void> initialImportFuture = new CompletableFuture<>();
+    private final CompletableFuture<Void> initialUpdateFuture = new CompletableFuture<>();
+    private final CompletableFuture<Void> vectorUpdateFuture = new CompletableFuture<>();
 
     public TransferAssetProcess(ShutterstockService shutterstockService, FileService fileService, ApplicationProperties applicationProperties, UpdateVectorImages updateVectorImages) {
         this.shutterstockService = shutterstockService;
@@ -42,26 +44,73 @@ public class TransferAssetProcess {
     public void initialImport() {
         if (!applicationProperties.isRunInitialImport()) {
             log.info("Initial import is disabled by configuration (run-initial-import=false).");
-            isInitialImportCompleted.set(true);
-            log.info("Starting scheduled tasks.");
+            initialImportFuture.complete(null);
             return;
         }
 
-        new Thread(() -> {
-            log.info("Starting initial import of assets because run-initial-import=true.");
-            performInitialImport();
-            isInitialImportCompleted.set(true);
-            log.info("Initial import completed, starting scheduled tasks.");
-        }).start();
+        CompletableFuture
+          .runAsync(() -> {
+              log.info("Starting initial import of assets because run-initial-import=true.");
+              performInitialImport();
+          })
+          .whenComplete((ignored, throwable) -> {
+              if (throwable != null) {
+                  Throwable cause = unwrap(throwable);
+                  log.error("Initial import failed: {}", cause.getMessage(), cause);
+              } else {
+                  log.info("Initial import completed.");
+              }
+              initialImportFuture.complete(null);
+          });
     }
 
     private void performInitialImport() {
-        int batchSize = 1;
-        int page = 1748;
+        final int imageBatchSize = 100;
+        final int videoBatchSize = 50;
+        final int audioBatchSize = 50;
+
+        for (int page = 1; ; page++) {
+            try {
+                List<ImageDownloadDTO> allImages = getAllImages(page, imageBatchSize);
+                if (allImages.isEmpty()) {
+                    break;
+                }
+                processImages(allImages);
+            } catch (Exception e) {
+                log.error("Error fetching images on page {} -> {}. Skipping this page.", page, e.getMessage());
+            }
+        }
+
+        for (int page = 1; ; page++) {
+            try {
+                List<VideoDownloadDTO> allVideos = getAllVideos(page, videoBatchSize);
+                if (allVideos.isEmpty()) {
+                    break;
+                }
+                processVideos(allVideos);
+            } catch (Exception e) {
+                log.error("Error fetching videos on page {} -> {}. Skipping this page.", page, e.getMessage());
+            }
+        }
+
+        for (int page = 1; ; page++) {
+            try {
+                List<AudioDownloadDTO> allAudios = getAllAudios(page, audioBatchSize);
+                if (allAudios.isEmpty()) {
+                    break;
+                }
+                processAudios(allAudios);
+            } catch (Exception e) {
+                log.error("Error fetching audios on page {} -> {}. Skipping this page.", page, e.getMessage());
+            }
+        }
+
+//        int batchSize = 1;
+//        int page = 1748;
 
         // Process images for a single page
-        List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
-        processImages(allImages);
+//        List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
+//        processImages(allImages);
 
         // Process videos for a single page
 //        List<VideoDownloadDTO> allVideos = getAllVideos(page, batchSize);
@@ -70,95 +119,91 @@ public class TransferAssetProcess {
         // Process audio for a single page
 //        List<AudioDownloadDTO> allAudios = getAllAudios(page, batchSize);
 //        processAudios(allAudios);
-
-//        while (true) {
-//            try {
-//                List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
-//                if (allImages.isEmpty()) {
-//                    break;
-//                }
-//                processImages(allImages);
-//            } catch (Exception e) {
-//                log.error("Error fetching images on page {} -> {}. Skipping this page.", page, e.getMessage());
-//            }
-//            page++;
-//        }
-//
-//        page = 1;
-//        while (true) {
-//            try {
-//                List<VideoDownloadDTO> allVideos = getAllVideos(page, batchSize);
-//                if (allVideos.isEmpty()) {
-//                    break;
-//                }
-//                processVideos(allVideos);
-//            } catch (Exception e) {
-//                log.error("Error fetching videos on page {} -> {}. Skipping this page.", page, e.getMessage());
-//            }
-//            page++;
-//        }
     }
 
     @PostConstruct
     public void initialUpdate() {
         if (!applicationProperties.isRunInitialUpdate()) {
             log.info("Initial update is disabled by configuration (run-initial-update=false).");
-            isInitialUpdateCompleted.set(true);
+            initialUpdateFuture.complete(null);
             return;
         }
 
-        new Thread(() -> {
-            log.info("Starting initial update of existing assets because run-initial-update=true.");
-            performInitialUpdate();
-            isInitialUpdateCompleted.set(true);
-            log.info("Initial update completed.");
-        }).start();
+        log.info("Initial update will start once the initial import has completed.");
+        initialImportFuture
+          .thenRunAsync(() -> {
+              log.info("Starting initial update of existing assets because run-initial-update=true.");
+              performInitialUpdate();
+          })
+          .whenComplete((ignored, throwable) -> {
+              if (throwable != null) {
+                  Throwable cause = unwrap(throwable);
+                  log.error("Initial update failed: {}", cause.getMessage(), cause);
+              } else {
+                  log.info("Initial update completed.");
+              }
+              initialUpdateFuture.complete(null);
+          });
     }
 
     private void performInitialUpdate() {
-        int batchSize = 1;
-        int page = 1751;
-
-        List<ImageDownloadDTO> singlePage = getAllImages(page, batchSize);
-        processExistingImages(singlePage);
-
-//        while (true) {
-//            try {
-//                List<ImageDownloadDTO> images = getAllImages(page, batchSize);
-//                if (images.isEmpty()) break;
-//                processExistingImages(images);
-//            } catch (Exception e) {
-//                log.error("Error fetching images on page {} -> {}. Skipping this page.", page, e.getMessage());
-//            }
-//            page++;
-//        }
+        final int batchSize = 100;
+        for (int page = 1; ; page++) {
+            try {
+                List<ImageDownloadDTO> images = getAllImages(page, batchSize);
+                if (images.isEmpty()) {
+                    break;
+                }
+                processExistingImages(images);
+            } catch (Exception e) {
+                log.error("Error fetching images on page {} -> {}. Skipping this page.", page, e.getMessage());
+            }
+        }
     }
 
     @PostConstruct
     public void runVectorImagesUpdate() {
         if (!applicationProperties.isRunVectorImagesUpdate()) {
             log.info("Vector images update is disabled by configuration (run-vector-images-update=false).");
+            vectorUpdateFuture.complete(null);
             return;
         }
-        new Thread(() -> {
-            log.info("Starting vector images update because run-vector-images-update=true.");
-            updateVectorImages.run();
-            log.info("Vector images update completed.");
-        }).start();
+        log.info("Vector images update will start once initial import and initial update have completed.");
+        CompletableFuture
+          .allOf(initialImportFuture, initialUpdateFuture)
+          .thenRunAsync(() -> {
+              log.info("Starting vector images update because run-vector-images-update=true.");
+              updateVectorImages.run();
+          })
+          .whenComplete((ignored, throwable) -> {
+              if (throwable != null) {
+                  Throwable cause = unwrap(throwable);
+                  log.error("Vector images update failed: {}", cause.getMessage(), cause);
+              } else {
+                  log.info("Vector images update completed.");
+              }
+              vectorUpdateFuture.complete(null);
+          });
     }
 
     @Scheduled(cron = "0 */15 * * * ?")
     public void uploadAssets() {
-        if (!isInitialImportCompleted.get()) {
+        if (!initialImportFuture.isDone()) {
             log.info("Initial import not completed, skipping scheduled task.");
             return;
         }
 
-        if (!isInitialUpdateCompleted.get()) {
+        if (!initialUpdateFuture.isDone()) {
             log.info("Initial update not completed, skipping scheduled task.");
             return;
         }
 
+        if (!vectorUpdateFuture.isDone()) {
+            log.info("Vector images update not completed, skipping scheduled task.");
+            return;
+        }
+
+        log.info("Starting scheduled tasks.");
         if (lock.tryLock()) {
             try {
                 String date = getCurrentTimeMinus15Minutes();
@@ -379,6 +424,13 @@ public class TransferAssetProcess {
         List<AudioDownloadDTO> allAudios;
         allAudios = shutterstockService.getLicencedAudiosByDate(page, batchSize, date, "audio").getData();
         return allAudios;
+    }
+
+    private Throwable unwrap(Throwable throwable) {
+        if (throwable instanceof CompletionException && throwable.getCause() != null) {
+            return throwable.getCause();
+        }
+        return throwable;
     }
 
 //    public static String getCurrentTimeMinus15Minutes() {

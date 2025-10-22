@@ -3,6 +3,8 @@ package com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnec
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import static com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.configurations.properties.MediaPoolEnvironment.fromUrl;
+
 @Configuration
 @ConfigurationProperties(prefix = "application.server")
 public class ServerConfigurationProperties {
@@ -12,6 +14,10 @@ public class ServerConfigurationProperties {
     private Integer requestTimeout;
     private Integer maxInMemorySize;
     private Integer port;
+
+    public MediaPoolEnvironment getEnvironment() {
+        return fromUrl(url);
+    }
 
     public String getUrl() {
         return url;

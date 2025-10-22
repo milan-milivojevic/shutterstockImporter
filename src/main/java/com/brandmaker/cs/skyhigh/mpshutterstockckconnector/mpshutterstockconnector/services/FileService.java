@@ -1,9 +1,9 @@
 package com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.services;
 
-import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.configurations.properties.ServerConfigurationProperties;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.dto.*;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.generated.mediapool.UploadMediaResult;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.utils.AssetUtils;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -25,10 +25,12 @@ import java.util.regex.Pattern;
 public class FileService {
     private final WebClient webClient;
     private final AssetService assetService;
+    private final MediaPoolSearchPayloadFactory searchPayloadFactory;
     private static final Pattern MEDIA_POOL_HASH_PATTERN = Pattern.compile("(?<=!\\s)[A-Za-z0-9+/=]+");
 
-    public FileService(WebClient.Builder webClientBuilder, ServerConfigurationProperties properties, AssetService assetService) {
+    public FileService(WebClient.Builder webClientBuilder, AssetService assetService, MediaPoolSearchPayloadFactory searchPayloadFactory) {
         this.assetService = assetService;
+        this.searchPayloadFactory = searchPayloadFactory;
         this.webClient = webClientBuilder.build();
 
     }
@@ -85,21 +87,47 @@ public class FileService {
 
     public void updateExistingAssets(ImageDownloadDTO image, ShutterstockImageMetadataDto imageMetadataEn, ShutterstockImageMetadataDto imageMetadataDe) throws IOException {
         try {
-            AssetSearchTO searchTO = AssetSearchTO.createPayloadWithShutterstockImageId(image.getImage().getId());
-            log.info("Searching asset for Shutterstock ID={} …", image.getImage().getId());
+            String shutterstockId = image.getImage().getId();
+            String stockValue = "STOCK " + shutterstockId;
+            AssetSearchTO searchTO = searchPayloadFactory.buildUpdateExistingAssetsPayload(stockValue);
+            log.info("Searching asset for Shutterstock ID={} using stock title …", shutterstockId);
             log.info("Search payload: {}", searchTO);
 
             AssetSearchResponseTO response = assetService.searchAssets(searchTO);
-            log.info("Search finished. Items found: {}", response.getItems() == null ? 0 : response.getItems().size());
+            int totalHits = response == null ? 0 : response.getTotalHits();
+            log.info("Search finished. totalHits={}", totalHits);
 
-
-            if (!response.getItems().isEmpty()) {
-                final AssetMetadataTO assetMetadataTO =
-                  AssetUtils.computeExistingAssetMetadata(response.getAssetId(), image, imageMetadataEn, imageMetadataDe);
-                this.assetService.updateAssetMetadata(assetMetadataTO);
-            } else {
-                log.error("Cannot update asset. Empty response returned.");
+            if (response == null || totalHits <= 0 || response.getItems().isEmpty()) {
+                log.warn("Cannot update asset. No Media Pool entry found for stock title '{}'.", stockValue);
+                return;
             }
+
+            String assetId = null;
+            for (JsonNode item : response.getItems()) {
+                if (item == null) {
+                    continue;
+                }
+                boolean vectorOfficial = MediaPoolService.isVectorOfficial(item);
+                if (vectorOfficial) {
+                    log.debug("Skipping assetId={} because it already has an official vector version.",
+                      MediaPoolService.readAssetId(item));
+                    continue;
+                }
+                assetId = extractAssetId(item);
+                if (assetId != null && !assetId.isBlank()) {
+                    break;
+                }
+            }
+
+            if (assetId == null || assetId.isBlank()) {
+                log.info("All hits already have official vector versions for stock '{}'. Skipping title update.",
+                  stockValue);
+                return;
+            }
+
+            final AssetMetadataTO assetMetadataTO =
+              AssetUtils.computeExistingAssetMetadata(assetId, image, imageMetadataEn, imageMetadataDe);
+            this.assetService.updateAssetMetadata(assetMetadataTO);
         } catch (Exception e) {
             log.error("Error in updateExistingAssets: {}", e.getMessage(), e);
         }
@@ -156,5 +184,22 @@ public class FileService {
             log.error(e.getMessage());
         }
 
+    }
+
+    private String extractAssetId(JsonNode item) {
+        if (item == null) {
+            return null;
+        }
+        JsonNode versionItems = item.path("fields").path("versions").path("items");
+        if (versionItems.isArray() && versionItems.size() > 0) {
+            JsonNode idNode = versionItems.get(0)
+              .path("fields")
+              .path("assetId")
+              .path("value");
+            if (!idNode.isMissingNode() && !idNode.isNull()) {
+                return idNode.asText();
+            }
+        }
+        return null;
     }
 }

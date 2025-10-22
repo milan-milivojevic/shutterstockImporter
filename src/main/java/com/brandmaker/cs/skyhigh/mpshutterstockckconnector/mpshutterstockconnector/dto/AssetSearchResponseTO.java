@@ -16,6 +16,7 @@ public class AssetSearchResponseTO {
 
     private final List<JsonNode> items;
     private final String assetId;
+    private final int totalHits;
 
     /**
      * Parses the response JSON, populates items array and extracts assetId
@@ -23,6 +24,8 @@ public class AssetSearchResponseTO {
      */
     @JsonCreator
     public AssetSearchResponseTO(JsonNode root) {
+        this.totalHits = root.path("totalHits").asInt(0);
+
         JsonNode itemsNode = root.path("items");
         if (itemsNode.isArray() && itemsNode.size() > 0) {
             List<JsonNode> temp = new ArrayList<>();
@@ -62,5 +65,9 @@ public class AssetSearchResponseTO {
      */
     public String getAssetId() {
         return assetId;
+    }
+
+    public int getTotalHits() {
+        return totalHits;
     }
 }
