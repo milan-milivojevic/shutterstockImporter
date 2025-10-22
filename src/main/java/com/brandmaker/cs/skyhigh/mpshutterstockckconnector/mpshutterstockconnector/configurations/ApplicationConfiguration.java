@@ -13,6 +13,7 @@ import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
@@ -37,31 +38,41 @@ public class ApplicationConfiguration {
 
     @Bean
     WebClient webClient() {
+        final String baseUrl = this.properties.getUrl();
+        if (!StringUtils.hasText(baseUrl)) {
+            throw new IllegalStateException("Property 'application.server.url' must be configured.");
+        }
+
+        final Integer requestTimeout = this.properties.getRequestTimeout();
+        if (requestTimeout == null || requestTimeout <= 0) {
+            throw new IllegalStateException("Property 'application.server.request_timeout' must be configured with a positive value.");
+        }
+
+        final Integer maxInMemorySize = this.properties.getMaxInMemorySize();
+        if (maxInMemorySize == null || maxInMemorySize <= 0) {
+            throw new IllegalStateException("Property 'application.server.max_in_memory_size' must be configured with a positive value.");
+        }
 
         final HttpClient httpClient = HttpClient.create()
-                .responseTimeout(Duration.ofSeconds(
-                        this.properties.getRequestTimeout()
-                ));
+          .responseTimeout(Duration.ofSeconds(requestTimeout));
 
         final ExchangeStrategies strategies = ExchangeStrategies.builder()
-                .codecs(codecs -> codecs.defaultCodecs().maxInMemorySize(
-                        this.properties.getMaxInMemorySize()
-                ))
-                .build();
+          .codecs(codecs -> codecs.defaultCodecs().maxInMemorySize(maxInMemorySize))
+          .build();
 
         return WebClient.builder()
-                .baseUrl(this.properties.getUrl())
-                .clientConnector(new ReactorClientHttpConnector(httpClient))
-                .exchangeStrategies(strategies)
-                .build();
+          .baseUrl(baseUrl)
+          .clientConnector(new ReactorClientHttpConnector(httpClient))
+          .exchangeStrategies(strategies)
+          .build();
     }
 
     @Bean
     ObjectMapper objectMapper() {
 
         return new ObjectMapper()
-                .registerModule(new JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+          .registerModule(new JavaTimeModule())
+          .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     @Bean
