@@ -1,10 +1,12 @@
 package com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.helpers;
 
+import java.net.URI;
 import java.util.List;
 
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.services.AuthService;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.utils.JwtUtils;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -17,6 +19,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Mono;
 
 @Component
 public class WebClientHelper {
@@ -27,6 +30,15 @@ public class WebClientHelper {
     private final AuthService authService;
 
     private String accessToken;
+
+    @Value("${application.mp.web.cookie:}")
+    private String mpWebCookie;
+
+    @Value("${application.mp.web.referer:https://mediaservices-test.zf.com/web/mp/search}")
+    private String mpWebReferer;
+
+    @Value("${application.server.url}")
+    private String serverBaseUrl;
 
     public WebClientHelper(final WebClient webClient, final AuthService authService) {
         this.webClient = webClient;
@@ -43,8 +55,8 @@ public class WebClientHelper {
      * @param pathParams Path params
      * @return {@link ResponseEntity} of the class
      */
-    public <T> ResponseEntity<T> sendPostRequest(final String endpoint, final Object body,
-                                                 final MediaType mediaType, final Class<T> clazz, final Object... pathParams) {
+    public < T > ResponseEntity < T > sendPostRequest(final String endpoint, final Object body,
+                                                      final MediaType mediaType, final Class < T > clazz, final Object...pathParams) {
 
         return this.webClient.post().uri(uriBuilder ->
             uriBuilder.path(endpoint)
@@ -67,8 +79,8 @@ public class WebClientHelper {
      * @param clazz     Class that shows the response body
      * @return {@link ResponseEntity} of the class
      */
-    public <T> ResponseEntity<T> sendPatchRequest(final String endpoint, final Object body, final MediaType mediaType,
-                                                  final Class<T> clazz) {
+    public < T > ResponseEntity < T > sendPatchRequest(final String endpoint, final Object body, final MediaType mediaType,
+                                                       final Class < T > clazz) {
 
         return this.webClient.patch().uri(endpoint)
           .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
@@ -87,8 +99,8 @@ public class WebClientHelper {
      * @param clazz    Class that shows the response body
      * @return {@link ResponseEntity} of the class
      */
-    public <T> ResponseEntity<T> sendPostRequestUrlEncoded(final String endpoint,
-                                                           final MultiValueMap<String, String> body, final Class<T> clazz) {
+    public < T > ResponseEntity < T > sendPostRequestUrlEncoded(final String endpoint,
+                                                                final MultiValueMap < String, String > body, final Class < T > clazz) {
 
         return this.webClient.post().uri(endpoint)
           .header(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken())
@@ -108,8 +120,8 @@ public class WebClientHelper {
      * @param params   Path params
      * @return {@link ResponseEntity} of the class
      */
-    public <T> ResponseEntity<T> sendPutRequest(final String endpoint, final Object body, final Class<T> clazz,
-                                                final Object... params) {
+    public < T > ResponseEntity < T > sendPutRequest(final String endpoint, final Object body, final Class < T > clazz,
+                                                     final Object...params) {
 
         return this.webClient.put().uri(uriBuilder ->
             uriBuilder.path(endpoint)
@@ -132,8 +144,8 @@ public class WebClientHelper {
      * @param pathParams  Path parameters
      * @return {@link ResponseEntity} of class
      */
-    public <T> ResponseEntity<T> sendGetRequest(final String endpoint, final MultiValueMap<String, String> queryParams,
-                                                final Class<T> clazz, final Object... pathParams) {
+    public < T > ResponseEntity < T > sendGetRequest(final String endpoint, final MultiValueMap < String, String > queryParams,
+                                                     final Class < T > clazz, final Object...pathParams) {
 
         final UriComponents uriComponents = UriComponentsBuilder.fromUriString(endpoint)
           .queryParams(queryParams)
@@ -154,8 +166,8 @@ public class WebClientHelper {
      * @param pathParams Path parameters
      * @return {@link ResponseEntity} of {@link List} entities
      */
-    public <T> ResponseEntity<List<T>> sendGetRequest(final String endpoint, final Class<T> clazz,
-                                                      final Object... pathParams) {
+    public < T > ResponseEntity < List < T >> sendGetRequest(final String endpoint, final Class < T > clazz,
+                                                             final Object...pathParams) {
 
         final UriComponents uriComponents = UriComponentsBuilder.fromUriString(endpoint)
           .buildAndExpand(pathParams);
@@ -167,7 +179,7 @@ public class WebClientHelper {
           .block();
     }
 
-    public ResponseEntity<JsonNode> sendGetJson(final String endpoint, final Object... pathParams) {
+    public ResponseEntity < JsonNode > sendGetJson(final String endpoint, final Object...pathParams) {
         return this.webClient.get().uri(uriBuilder ->
             uriBuilder.path(endpoint).build(pathParams)
           )
@@ -177,7 +189,7 @@ public class WebClientHelper {
           .block();
     }
 
-    public ResponseEntity<JsonNode> sendPostJson(final String endpoint, final Object body, final Object... pathParams) {
+    public ResponseEntity < JsonNode > sendPostJson(final String endpoint, final Object body, final Object...pathParams) {
         return this.webClient.post().uri(uriBuilder ->
             uriBuilder.path(endpoint).build(pathParams)
           )
@@ -189,8 +201,8 @@ public class WebClientHelper {
           .block();
     }
 
-    public ResponseEntity<JsonNode> sendPostMultipart(final String endpoint, final MultiValueMap<String, ?> parts,
-                                                      final Object... pathParams) {
+    public ResponseEntity < JsonNode > sendPostMultipart(final String endpoint, final MultiValueMap < String, ? > parts,
+                                                         final Object...pathParams) {
         return this.webClient.post().uri(uriBuilder ->
             uriBuilder.path(endpoint).build(pathParams)
           )
@@ -202,21 +214,69 @@ public class WebClientHelper {
           .block();
     }
 
-    public MultiValueMap<String, ?> buildMultipart(final String commentFieldName,
-                                                   final String commentValue,
-                                                   final String fileFieldName,
-                                                   final Resource fileResource,
-                                                   final MediaType fileContentType,
-                                                   final String filename) {
+    /**
+     * POST bez tela (browser-like) za .do UI endpointe koji zahtevaju JSESSIONID iz application.yaml (application.mp.web.cookie)
+     */
+    public ResponseEntity < JsonNode > sendPostEmptyBody(final String endpoint, final Object...pathParams) {
+        String url = endpoint;
+        if (pathParams != null && pathParams.length > 0) {
+            url = UriComponentsBuilder.fromUriString(url).buildAndExpand(pathParams).toUriString();
+        }
+        if (!url.startsWith("http")) {
+            if (serverBaseUrl != null && !serverBaseUrl.isBlank()) {
+                if (serverBaseUrl.endsWith("/") && url.startsWith("/")) {
+                    url = serverBaseUrl + url.substring(1);
+                } else if (!serverBaseUrl.endsWith("/") && !url.startsWith("/")) {
+                    url = serverBaseUrl + "/" + url;
+                } else {
+                    url = serverBaseUrl + url;
+                }
+            }
+        }
+        return this.webClient.post().uri(URI.create(url))
+          .headers(h -> {
+              h.add(HttpHeaders.AUTHORIZATION, BEARER + this.getAccessToken());
+              if (mpWebCookie != null && !mpWebCookie.isBlank()) {
+                  h.add(HttpHeaders.COOKIE, mpWebCookie);
+              }
+              h.add(HttpHeaders.ACCEPT, "application/json, text/plain, */*");
+              h.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+              h.add("X-Requested-With", "XMLHttpRequest");
+              if (mpWebReferer != null && !mpWebReferer.isBlank()) {
+                  h.add(HttpHeaders.REFERER, mpWebReferer);
+              }
+              h.add("Sec-Fetch-Site", "same-origin");
+              h.add("Sec-Fetch-Mode", "cors");
+              h.add("Sec-Fetch-Dest", "empty");
+              h.setContentLength(0);
+          })
+          .exchange()
+          .flatMap(resp -> {
+              if (resp.headers().contentType().map(mt -> mt.includes(MediaType.APPLICATION_JSON)).orElse(false)) {
+                  return resp.toEntity(JsonNode.class);
+              } else {
+                  return resp.releaseBody()
+                    .then(Mono.just(new ResponseEntity<JsonNode>(null, resp.headers().asHttpHeaders(), resp.statusCode())));
+              }
+          })
+          .block();
+    }
+
+    public MultiValueMap < String, ? > buildMultipart(final String commentFieldName,
+                                                      final String commentValue,
+                                                      final String fileFieldName,
+                                                      final Resource fileResource,
+                                                      final MediaType fileContentType,
+                                                      final String filename) {
         final MultipartBodyBuilder builder = new MultipartBodyBuilder();
         builder.part(commentFieldName, commentValue);
         final MultipartBodyBuilder.PartBuilder filePart = builder.part(fileFieldName, fileResource);
         if (fileContentType != null) {
             filePart.contentType(fileContentType);
         }
-        final String effectiveFilename = (filename != null && !filename.isBlank())
-          ? filename
-          : (fileResource.getFilename() != null ? fileResource.getFilename() : "upload.bin");
+        final String effectiveFilename = (filename != null && !filename.isBlank()) ?
+          filename :
+          (fileResource.getFilename() != null ? fileResource.getFilename() : "upload.bin");
         filePart.header(
           HttpHeaders.CONTENT_DISPOSITION,
           ContentDisposition.builder("form-data")

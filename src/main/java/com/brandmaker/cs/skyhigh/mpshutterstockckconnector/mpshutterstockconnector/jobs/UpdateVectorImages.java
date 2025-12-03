@@ -6,14 +6,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.configurations.properties.ApplicationProperties;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.services.MediaPoolService;
 import com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.services.ShutterstockService;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
 
 @Component
 @RequiredArgsConstructor
@@ -100,14 +104,22 @@ public class UpdateVectorImages {
 					}
 
 					final long assetId = assetIdToFix;
-					withRetryVoid(3, () -> {
+
+					try {
 						mediaPoolService.uploadAssetVersion(assetId, "Update as Dummy", dummyEps, "dummy.eps", MediaType.valueOf("application/postscript"));
-					}, "[UVI-7] upload dummy failed, attempt=%d");
-					Long dummyVersion = findVersionByComment(assetId, "Update as Dummy");
+					} catch (WebClientResponseException e) {
+						log.warn("[UVI-7] upload dummy failed status={} body={}", e.getStatusCode().value(), safeBody(e));
+						if (e.getStatusCode() != HttpStatus.CONFLICT) {
+							throw e;
+						}
+					}
+
+					Long dummyVersion = waitForVersion(assetId, "Update as Dummy", "dummy.eps", 12, 1000);
 					if (dummyVersion == null) {
 						log.warn("[UVI-7b] [{}] Cannot find 'Update as Dummy' version on assetId={}, skip to next.", processed, assetId);
 						continue;
 					}
+
 					mediaPoolService.setOfficialVersion(assetId, dummyVersion);
 					deleteAllBut(assetId, dummyVersion);
 
@@ -131,11 +143,16 @@ public class UpdateVectorImages {
 						@Override public String getFilename() { return "shutterstock_" + shutterId + ".eps"; }
 					};
 
-					withRetryVoid(3, () -> {
+					try {
 						mediaPoolService.uploadAssetVersion(assetId, "Update as EPS", epsResource, "shutterstock_" + shutterId + ".eps", MediaType.valueOf("application/postscript"));
-					}, "[UVI-9] upload EPS failed, attempt=%d");
+					} catch (WebClientResponseException e) {
+						log.warn("[UVI-9] upload EPS failed status={} body={}", e.getStatusCode().value(), safeBody(e));
+						if (e.getStatusCode() != HttpStatus.CONFLICT) {
+							throw e;
+						}
+					}
 
-					Long epsVersion = findVersionByComment(assetId, "Update as EPS");
+					Long epsVersion = waitForVersion(assetId, "Update as EPS", "shutterstock_" + shutterId + ".eps", 18, 1000);
 					if (epsVersion == null) {
 						log.warn("[UVI-9b] [{}] Cannot find 'Update as EPS' version on assetId={}, skip cleanup.", processed, assetId);
 						continue;
@@ -157,37 +174,48 @@ public class UpdateVectorImages {
 		log.info("[UVI-END] Completed vector update. processed={} items.", processed);
 	}
 
-	private void withRetryVoid(int times, Runnable action, String failLogFmt) {
-		for (int i = 1; i <= times; i++) {
-			try {
-				action.run();
-				return;
-			} catch (Exception e) {
-				log.warn(failLogFmt, i, e);
-				if (i == times) throw e;
-				try { Thread.sleep(i * 500L); } catch (InterruptedException ignored) {}
-			}
-		}
+	private String safeBody(WebClientResponseException e) {
+		try { return e.getResponseBodyAsString(); } catch (Exception ignore) { return ""; }
 	}
 
-	private Long findVersionByComment(long assetId, String comment) {
-		JsonNode versions = mediaPoolService.getAssetVersions(assetId);
-		JsonNode items = versions.path("items");
-		if (!items.isArray()) return null;
-		for (JsonNode v : items) {
-			String c = v.at("/fields/uploadComments/value").asText("");
-			long vn = v.at("/fields/versionNumber/value").asLong(-1);
-			if (comment.equals(c)) return vn;
+	private Long waitForVersion(long assetId, String comment, String filename, int attempts, long sleepMs) {
+		for (int i = 0; i < attempts; i++) {
+			Long v = findVersionByCommentOrFilename(assetId, comment, filename);
+			if (v != null) return v;
+			try { Thread.sleep(sleepMs); } catch (InterruptedException ignored) {}
 		}
 		return null;
 	}
 
+	private Long findVersionByCommentOrFilename(long assetId, String comment, String filename) {
+		JsonNode versions = mediaPoolService.getAssetVersions(assetId);
+
+		if (!versions.isArray()) {
+			log.warn("Unexpected MP versions payload (expected array). payload={}", versions);
+			return null;
+		}
+
+		for (JsonNode v : versions) {
+			String c  = v.path("uploadComments").asText(null);
+			String fn = v.path("fileResource").path("fileName").asText(null);
+			long vn   = v.path("versionNumber").asLong(-1);
+
+			if (vn < 0) continue;
+			if (comment != null && comment.equals(c)) return vn;
+			if (filename != null && fn != null && filename.equalsIgnoreCase(fn)) return vn;
+		}
+		return null;
+	}
+
+
 	private void deleteAllBut(long assetId, long keepVersion) {
 		JsonNode versions = mediaPoolService.getAssetVersions(assetId);
-		JsonNode items = versions.path("items");
-		if (!items.isArray()) return;
-		for (JsonNode v : items) {
-			long vn = v.at("/fields/versionNumber/value").asLong(-1);
+		if (!versions.isArray()) {
+			log.warn("Unexpected MP versions payload (expected array). payload={}", versions);
+			return;
+		}
+		for (JsonNode v : versions) {
+			long vn = v.path("versionNumber").asLong(-1);
 			if (vn >= 0 && vn != keepVersion) {
 				try {
 					mediaPoolService.removeVersion(assetId, vn);
@@ -198,10 +226,16 @@ public class UpdateVectorImages {
 		}
 	}
 
+	private static final WebClient DL_CLIENT = WebClient.builder()
+		.exchangeStrategies(ExchangeStrategies.builder()
+			.codecs(c -> c.defaultCodecs().maxInMemorySize(64 * 1024 * 1024)) // 64MB
+			.build())
+		.build();
+
 	private byte[] downloadBytes(String url) {
 		try {
-			return org.springframework.web.reactive.function.client.WebClient.create()
-				.get().uri(url)
+			return DL_CLIENT.get()
+				.uri(url)
 				.retrieve()
 				.bodyToMono(byte[].class)
 				.block();

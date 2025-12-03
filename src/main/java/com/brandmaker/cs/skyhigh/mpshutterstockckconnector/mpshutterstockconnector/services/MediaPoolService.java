@@ -45,13 +45,16 @@ public class MediaPoolService {
 
     public void setOfficialVersion(final long assetId, final long version) {
         webClientHelper
-          .sendPostJson(ApiEndpointConstants.REST_MP_V10_SET_OFFICIAL, new Object(), assetId, version)
+          .sendPostJson(ApiEndpointConstants.REST_MP_V10_SET_OFFICIAL, java.util.Collections.emptyMap(), assetId, version)
           .getBody();
     }
 
     public void removeVersion(final long assetId, final long version) {
+        final String url = ApiEndpointConstants.REMOVE_MEDIA_VERSION
+          + "?ajax=true&mediaGUID=" + assetId
+          + "&versionNumber=" + version;
         webClientHelper
-          .sendPostJson(ApiEndpointConstants.REMOVE_MEDIA_VERSION, new Object(), assetId, version)
+          .sendPostEmptyBody(url)
           .getBody();
     }
 
@@ -74,32 +77,11 @@ public class MediaPoolService {
     }
 
     public static boolean isVectorOfficial(final JsonNode item) {
-        final String ext = item.at("/fields/currentVersion/fileResource/extension/value").asText("").toLowerCase();
-        final String mimeType = item.at("/fields/currentVersion/fileResource/mimeType/value").asText("").toLowerCase();
-        return isVectorType(ext) || isVectorType(mimeType);
+        final String ext = item.at("/fields/currentVersion/fileResource/extension/value").asText("");
+        return "eps".equalsIgnoreCase(ext);
     }
 
     public static long readAssetId(final JsonNode item) {
         return item.at("/fields/id/value").asLong();
-    }
-
-    private static boolean isVectorType(String value) {
-        if (value == null) {
-            return false;
-        }
-        switch (value) {
-            case "eps":
-            case "image/eps":
-            case "ai":
-            case "image/ai":
-            case "svg":
-            case "image/svg":
-            case "image/svg+xml":
-            case "wmf":
-            case "image/wmf":
-                return true;
-            default:
-                return false;
-        }
     }
 }

@@ -223,7 +223,7 @@ public class TransferAssetProcess {
                 if (allAudiosByDate.isEmpty()) {
                     log.info("There are no audios to download.");
                 }
-                processVideos(allVideosByDate);
+                processAudios(allAudiosByDate);
             } catch (Exception e) {
                 log.error("Error during scheduled task: ", e);
             } finally {

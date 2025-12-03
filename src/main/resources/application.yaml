@@ -2,15 +2,20 @@ application:
 
   run_initial_import: true
   run_initial_update: true
-  run_vector_images_update: true
+  run_vector_images_update: false
 
   authentication:
     user: uptempo-shutterstock-import
     password: dsfoOd/d&ew(freui9tjdUfw=(r4giedefr
 
   server:
-    url: https://mediaservices-test.zf.com/
-    soap_url: https://mediaservices-test.zf.com/webservices/MediaPool/
+    url: https://mediaservices.zf.com/
+    soap_url: https://mediaservices.zf.com/webservices/MediaPool/
     request_timeout: 60
     max_in_memory_size: 1000000000
     port: 8080
+
+  mp:
+    web:
+      cookie: "JSESSIONID=r7SKYm1IvQsUCJoXkl3Cgc0d9Ne0LhwmWNCzDvWl.e47923f84117; JSESSIONIDSSO=MrTZQmeNJOQ2QdoiOA1WnLptv9S6akWV-8PDEdN9; JSESSIONID_MMS=r7SKYm1IvQsUCJoXkl3Cgc0d9Ne0LhwmWNCzDvWl"
+      referer: https://mediaservices-test.zf.com/web/mp/search

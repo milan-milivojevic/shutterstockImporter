@@ -221,7 +221,7 @@
             }
           },
           {
-            "@type": "or",
+            "@type": "and",
             "subs": [
               {
                 "@type": "eq",
