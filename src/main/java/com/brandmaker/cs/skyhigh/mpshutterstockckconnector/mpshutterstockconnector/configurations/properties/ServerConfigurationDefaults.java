@@ -1,30 +1,33 @@
 package com.brandmaker.cs.skyhigh.mpshutterstockckconnector.mpshutterstockconnector.configurations.properties;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
 import java.util.Properties;
 
 /**
- * Provides fallback Media Pool server settings by reading the classpath {@code application.yaml}.
- * <p>
- * When the deployment relies on an external {@code application.properties} file and omits specific
- * keys, Spring replaces the whole configuration set. These helpers re-introduce the defaults that
- * are defined in the bundled YAML so the application can still start with sensible values.
+ * Provides fallback Media Pool server settings by reading classpath {@code application.properties}
+ * or {@code application.yaml} if properties are unavailable.
  */
 @Component
 public class ServerConfigurationDefaults {
 
-	private static final String CONFIG_RESOURCE = "application.yaml";
+	private static final Logger LOGGER = LoggerFactory.getLogger(ServerConfigurationDefaults.class);
+
+	private static final String YAML_RESOURCE = "application.yaml";
+	private static final String PROPERTIES_RESOURCE = "application.properties";
 
 	private final Properties properties;
 
 	public ServerConfigurationDefaults() {
-		final YamlPropertiesFactoryBean yamlFactory = new YamlPropertiesFactoryBean();
-		yamlFactory.setResources(new ClassPathResource(CONFIG_RESOURCE));
-		this.properties = yamlFactory.getObject();
+		this.properties = loadDefaults();
 	}
 
 	public String getUrl() {
@@ -49,6 +52,35 @@ public class ServerConfigurationDefaults {
 
 	private String getProperty(String key) {
 		return this.properties != null ? this.properties.getProperty(key) : null;
+	}
+
+	private Properties loadDefaults() {
+		final Properties defaults = new Properties();
+
+		final Resource propertiesResource = new ClassPathResource(PROPERTIES_RESOURCE);
+		if (propertiesResource.exists()) {
+			try {
+				defaults.putAll(PropertiesLoaderUtils.loadProperties(propertiesResource));
+			} catch (IOException exception) {
+				LOGGER.warn("Failed to load default values from application.properties: {}", exception.getMessage());
+			}
+		}
+
+		final Resource yamlResource = new ClassPathResource(YAML_RESOURCE);
+		if (yamlResource.exists()) {
+			final YamlPropertiesFactoryBean yamlFactory = new YamlPropertiesFactoryBean();
+			yamlFactory.setResources(yamlResource);
+			final Properties yamlProperties = yamlFactory.getObject();
+			if (yamlProperties != null) {
+				yamlProperties.forEach((key, value) -> defaults.putIfAbsent(key, value));
+			}
+		}
+
+		if (defaults.isEmpty()) {
+			LOGGER.warn("No default configuration file (application.properties or application.yaml) was found on the classpath.");
+		}
+
+		return defaults;
 	}
 
 	private Integer getInteger(String key) {
