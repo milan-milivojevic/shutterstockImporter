@@ -85,10 +85,20 @@ public class FileService {
 
     }
 
+    public boolean assetExistsInMediaPool(String shutterstockId) {
+        String stockValue = buildStockValue(shutterstockId);
+        AssetSearchTO searchTO = searchPayloadFactory.buildUpdateExistingAssetsPayload(stockValue);
+        log.info("Checking Media Pool for existing asset with stock title '{}'…", stockValue);
+        AssetSearchResponseTO response = assetService.searchAssets(searchTO);
+        int totalHits = response == null ? 0 : response.getTotalHits();
+        log.info("Existing asset search finished. totalHits={}", totalHits);
+        return response != null && response.getItems() != null && !response.getItems().isEmpty();
+    }
+
     public void updateExistingAssets(ImageDownloadDTO image, ShutterstockImageMetadataDto imageMetadataEn, ShutterstockImageMetadataDto imageMetadataDe) throws IOException {
         try {
             String shutterstockId = image.getImage().getId();
-            String stockValue = "STOCK " + shutterstockId;
+            String stockValue = buildStockValue(shutterstockId);
             AssetSearchTO searchTO = searchPayloadFactory.buildUpdateExistingAssetsPayload(stockValue);
             log.info("Searching asset for Shutterstock ID={} using stock title …", shutterstockId);
             log.info("Search payload: {}", searchTO);
@@ -102,26 +112,10 @@ public class FileService {
                 return;
             }
 
-            String assetId = null;
-            for (JsonNode item : response.getItems()) {
-                if (item == null) {
-                    continue;
-                }
-                boolean vectorOfficial = MediaPoolService.isVectorOfficial(item);
-                if (vectorOfficial) {
-                    log.debug("Skipping assetId={} because it already has an official vector version.",
-                      MediaPoolService.readAssetId(item));
-                    continue;
-                }
-                assetId = extractAssetId(item);
-                if (assetId != null && !assetId.isBlank()) {
-                    break;
-                }
-            }
-
+            JsonNode firstItem = response.getItems().get(0);
+            String assetId = extractAssetId(firstItem);
             if (assetId == null || assetId.isBlank()) {
-                log.info("All hits already have official vector versions for stock '{}'. Skipping title update.",
-                  stockValue);
+                log.warn("Cannot update asset. No assetId found in Media Pool response for stock '{}'.", stockValue);
                 return;
             }
 
@@ -201,5 +195,12 @@ public class FileService {
             }
         }
         return null;
+    }
+
+    private String buildStockValue(String shutterstockId) {
+        if (shutterstockId == null) {
+            return "STOCK";
+        }
+        return "STOCK " + shutterstockId.replaceAll("\"", "");
     }
 }

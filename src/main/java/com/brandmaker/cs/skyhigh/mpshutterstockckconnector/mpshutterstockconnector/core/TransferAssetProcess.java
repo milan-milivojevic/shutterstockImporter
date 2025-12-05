@@ -237,11 +237,15 @@ public class TransferAssetProcess {
     private void processImages(List<ImageDownloadDTO> allImages) {
         for (ImageDownloadDTO item : allImages) {
             try {
+                Long imageId = Long.parseLong(item.getImage().getId());
+                log.info("Image id: " + imageId);
+                if (fileService.assetExistsInMediaPool(item.getImage().getId())) {
+                    log.info("Skipping initial import for image {} because it already exists in Media Pool.", imageId);
+                    continue;
+                }
                 LincensedImageDto licensedImage = shutterstockService.licensedImage(item.getId(), "images");
                 log.info(licensedImage.getUrl());
                 log.info(item.getImage().getId().replaceAll("\"", ""));
-                Long imageId = Long.parseLong(item.getImage().getId());
-                log.info("Image id: " + imageId);
                 ShutterstockImageMetadataDto imageMetadataEn = shutterstockService.getMetadata(imageId, "images", "en");
                 if (imageMetadataEn.getData().isEmpty())
                     continue;
@@ -309,11 +313,15 @@ public class TransferAssetProcess {
     private void processVideos(List<VideoDownloadDTO> allVideos) {
         for (VideoDownloadDTO item : allVideos) {
             try {
+                Long videoId = Long.parseLong(item.getVideo().getId());
+                log.info("Video id: " + videoId);
+                if (fileService.assetExistsInMediaPool(item.getVideo().getId())) {
+                    log.info("Skipping initial import for video {} because it already exists in Media Pool.", videoId);
+                    continue;
+                }
                 LincensedVideoDto licensedVideo = shutterstockService.licensedVideo(item.getId(), "videos");
                 log.info(licensedVideo.getUrl());
                 log.info(item.getVideo().getId().replaceAll("\"", ""));
-                Long videoId = Long.parseLong(item.getVideo().getId());
-                log.info("Video id: " + videoId);
                 ShutterstockVideoMetadataDto videoMetadataEn = shutterstockService.getVideoMetadata(videoId, "videos", "en");
                 if (videoMetadataEn.getData().isEmpty())
                     continue;
@@ -348,11 +356,15 @@ public class TransferAssetProcess {
     private void processAudios(List<AudioDownloadDTO> allAudios) {
         for (AudioDownloadDTO item : allAudios) {
             try {
+                Long audioId = Long.parseLong(item.getAudio().getId());
+                log.info("Audio id: " + audioId);
+                if (fileService.assetExistsInMediaPool(item.getAudio().getId())) {
+                    log.info("Skipping initial import for audio {} because it already exists in Media Pool.", audioId);
+                    continue;
+                }
                 LincensedAudioDto licensedAudio = shutterstockService.licensedAudio(item.getId(), "audio");
                 log.info(licensedAudio.getUrl());
                 log.info(item. getAudio().getId().replaceAll("\"", ""));
-                Long audioId = Long.parseLong(item.getAudio().getId());
-                log.info("Audio id: " + audioId);
                 ShutterstockAudioMetadataDto audioMetadataEn = shutterstockService.getAudioMetadata(audioId, "audio", "en");
                 if (audioMetadataEn.getData().isEmpty())
                     continue;
