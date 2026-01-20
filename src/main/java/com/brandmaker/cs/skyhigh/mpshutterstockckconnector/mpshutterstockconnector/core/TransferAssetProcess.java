@@ -75,7 +75,7 @@ public class TransferAssetProcess {
                 if (allImages.isEmpty()) {
                     break;
                 }
-                processImages(allImages);
+                processImages(allImages, true);
             } catch (Exception e) {
                 log.error("Error fetching images on page {} -> {}. Skipping this page.", page, e.getMessage());
             }
@@ -87,7 +87,7 @@ public class TransferAssetProcess {
                 if (allVideos.isEmpty()) {
                     break;
                 }
-                processVideos(allVideos);
+                processVideos(allVideos, true);
             } catch (Exception e) {
                 log.error("Error fetching videos on page {} -> {}. Skipping this page.", page, e.getMessage());
             }
@@ -99,14 +99,14 @@ public class TransferAssetProcess {
                 if (allAudios.isEmpty()) {
                     break;
                 }
-                processAudios(allAudios);
+                processAudios(allAudios, true);
             } catch (Exception e) {
                 log.error("Error fetching audios on page {} -> {}. Skipping this page.", page, e.getMessage());
             }
         }
 
 //        int batchSize = 1;
-//        int page = 1748;
+//        int page = 1790;
 
         // Process images for a single page
 //        List<ImageDownloadDTO> allImages = getAllImages(page, batchSize);
@@ -211,19 +211,19 @@ public class TransferAssetProcess {
                 if (allImagesByDate.isEmpty()) {
                     log.info("There are no images to download.");
                 }
-                processImages(allImagesByDate);
+                processImages(allImagesByDate, false);
 
                 List<VideoDownloadDTO> allVideosByDate = getAllVideosByDate(date);
                 if (allVideosByDate.isEmpty()) {
                     log.info("There are no videos to download.");
                 }
-                processVideos(allVideosByDate);
+                processVideos(allVideosByDate, false);
 
                 List<AudioDownloadDTO> allAudiosByDate = getAllAudiosByDate(date);
                 if (allAudiosByDate.isEmpty()) {
                     log.info("There are no audios to download.");
                 }
-                processAudios(allAudiosByDate);
+                processAudios(allAudiosByDate, false);
             } catch (Exception e) {
                 log.error("Error during scheduled task: ", e);
             } finally {
@@ -234,12 +234,12 @@ public class TransferAssetProcess {
         }
     }
 
-    private void processImages(List<ImageDownloadDTO> allImages) {
+    private void processImages(List<ImageDownloadDTO> allImages, boolean skipExisting) {
         for (ImageDownloadDTO item : allImages) {
             try {
                 Long imageId = Long.parseLong(item.getImage().getId());
                 log.info("Image id: " + imageId);
-                if (fileService.assetExistsInMediaPool(item.getImage().getId())) {
+                if (skipExisting && fileService.assetExistsInMediaPool(item.getImage().getId())) {
                     log.info("Skipping initial import for image {} because it already exists in Media Pool.", imageId);
                     continue;
                 }
@@ -310,12 +310,12 @@ public class TransferAssetProcess {
         }
     }
 
-    private void processVideos(List<VideoDownloadDTO> allVideos) {
+    private void processVideos(List<VideoDownloadDTO> allVideos, boolean skipExisting) {
         for (VideoDownloadDTO item : allVideos) {
             try {
                 Long videoId = Long.parseLong(item.getVideo().getId());
                 log.info("Video id: " + videoId);
-                if (fileService.assetExistsInMediaPool(item.getVideo().getId())) {
+                if (skipExisting && fileService.assetExistsInMediaPool(item.getVideo().getId())) {
                     log.info("Skipping initial import for video {} because it already exists in Media Pool.", videoId);
                     continue;
                 }
@@ -353,12 +353,12 @@ public class TransferAssetProcess {
         }
     }
 
-    private void processAudios(List<AudioDownloadDTO> allAudios) {
+    private void processAudios(List<AudioDownloadDTO> allAudios, boolean skipExisting) {
         for (AudioDownloadDTO item : allAudios) {
             try {
                 Long audioId = Long.parseLong(item.getAudio().getId());
                 log.info("Audio id: " + audioId);
-                if (fileService.assetExistsInMediaPool(item.getAudio().getId())) {
+                if (skipExisting && fileService.assetExistsInMediaPool(item.getAudio().getId())) {
                     log.info("Skipping initial import for audio {} because it already exists in Media Pool.", audioId);
                     continue;
                 }

@@ -129,7 +129,8 @@
         "customAttribute_477",
         "customAttribute_479",
         "customAttribute_480",
-        "customAttribute_526"
+        "customAttribute_526",
+        "customAttribute_576"
       ]
     },
     "paging": {
@@ -197,7 +198,6 @@
               "customAttribute_465.value",
               "customAttribute_466.value",
               "customAttribute_467.value",
-              "customAttribute_468.value",
               "customAttribute_469.value",
               "customAttribute_470",
               "customAttribute_471",
@@ -207,8 +207,8 @@
               "customAttribute_475.value",
               "customAttribute_477.value",
               "customAttribute_479.value",
-              "customAttribute_480.value",
               "customAttribute_526.value",
+              "customAttribute_576.value",
               "ff_20_multi",
               "ff_19_multi",
               "ff_18_multi",
@@ -283,7 +283,6 @@
           "mp4",
           "mpg/mpeg",
           "swf",
-          "wmv",
           "svg"
         ]
       },
